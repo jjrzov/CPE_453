@@ -4,27 +4,25 @@
 #include <unistd.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <pp.h>
+// #include <pp.h>
 
 #define BUFFER_SIZE 1500
 #define STDERR  2
 
-uintptr_t flr = NULL;
-uintptr_t tail = NULL;
-
-void *realloc(void *ptr, size_t size);
-void free(void * ptr);
-void *calloc(size_t nmemb, size_t size);
-int find_scale(int num);
+hdr *flr = NULL;
+hdr *tail = NULL;
 
 char buffer[BUFFER_SIZE];
 
 void *malloc(size_t size){
+    printf("Calling Malloc\n");
     if (size == 0){
         return NULL;
     }
-    if ((hdr *) flr == NULL){
-        flr = init_heap();  // Need to initialize heap
+    if (flr == NULL){
+        if ((flr = init_heap()) == NULL){ // Need to initialize heap
+            return NULL;
+        }
         tail = flr; // Update tail
     }
     return add_chunk(size);
@@ -32,7 +30,8 @@ void *malloc(size_t size){
 }
 
 void *add_chunk(size_t req_size){
-    hdr *curr_chk = (hdr *) flr;
+    printf("Add Chunk\n");
+    hdr *curr_chk = flr;
     size_t aligned_size = align16(req_size);  // Align size of data
     
     while (curr_chk != NULL){
@@ -50,11 +49,15 @@ void *add_chunk(size_t req_size){
         curr_chk = curr_chk->next_chk;
     }
     // Need more data
-    increase_heap(aligned_size); // will have loop call this
+    if (increase_heap(aligned_size) == -1){
+        // NEED TO SET ERRNO TO ENOMEM
+        return NULL;
+    }
     return add_chunk(req_size);
 }
 
 void split_chunk(hdr *chk, size_t des_size){
+    printf("Split Chunk\n");
     // Splits the given chunk into two if possible of desired size and remainder
 
     // Only make a new header if it can fit into remainder
@@ -62,20 +65,24 @@ void split_chunk(hdr *chk, size_t des_size){
 
         // Can add a header into remainder
         uintptr_t uint_chk = (uintptr_t) chk;
-        uintptr_t new_hdr = uint_chk + align16(sizeof(hdr)) + des_size;
-
+        hdr *new_hdr = (hdr *) (uint_chk + align16(sizeof(hdr)) + des_size);
         // Set the new header info
         size_t rem_data = chk->size - des_size - align16(sizeof(hdr));
+
+        new_hdr->free = 0;  // Create new header
+        new_hdr->next_chk = chk->next_chk;
+        new_hdr->prev_chk = chk;
+        new_hdr->size = rem_data;
+
         if (chk->next_chk == NULL){
-            // If adding to last node
-            create_hdr((hdr *) new_hdr, NULL, chk, rem_data);
-            tail = new_hdr;    // Update tail
+            printf("Last Node\n");
+            tail = new_hdr;
         } else {
-            // Not last node
-            create_hdr((hdr *) new_hdr, chk->next_chk, chk, rem_data);
+            chk->next_chk->prev_chk = new_hdr;
         }
+
         chk->size = des_size;
-        chk->next_chk = (hdr *) new_hdr;
+        chk->next_chk = new_hdr;
     }
 
     // If no space for header keep chunk size the same
@@ -84,27 +91,34 @@ void split_chunk(hdr *chk, size_t des_size){
     return;
 }
 
-void increase_heap(size_t size){
+int increase_heap(size_t size){
+    printf("Increasing Heap\n");
     // Add 64k * n to the heap
     int n = find_scale(size);   // Find how many multiples of 64k is needed
 
     void *old_brk;
     if ((old_brk = sbrk(n * HEAP_INCR)) == (void *) -1){
-        pp(stderr, "Failed SBRK\n");
-        exit(1);
+        return -1;
     }
 
-    hdr *last_node = (hdr *) tail;
-    if (last_node->free == 0){
+    if (tail->free == 0){
         // Last node is free
-        last_node->size += (n * HEAP_INCR);
+        tail->size += (n * HEAP_INCR);
     } else {
         // Last node not free
-        uintptr_t new_hdr = tail + align16(sizeof(hdr)) + last_node->size;
-        create_hdr((hdr *) new_hdr, NULL, last_node, n * HEAP_INCR);
-        last_node->next_chk = (hdr *) new_hdr;
-        tail = new_hdr;
+        uintptr_t new_hdr = (uintptr_t)tail + align16(sizeof(hdr)) + tail->size;
+
+        // create_hdr((hdr *) new_hdr, NULL, tail, n * HEAP_INCR);
+        hdr *hdr_ptr = (hdr *) new_hdr;
+        hdr_ptr->free = 0;
+        hdr_ptr->next_chk = NULL;
+        hdr_ptr->prev_chk = tail;
+        hdr_ptr->size = (n * HEAP_INCR);
+
+        tail->next_chk = (hdr *) new_hdr;
+        tail = (hdr *) new_hdr; // Update tail
     }
+    return 1;
 }
 
 int find_scale(int num){
@@ -142,6 +156,7 @@ uintptr_t align16(uintptr_t addr){
 }
 
 void create_hdr(hdr *chk_hdr, hdr *next, hdr *prev, size_t alloc_size){
+    printf("Creating new header\n");
     // Create a new chunk header node for linked list
     chk_hdr->free = 0;
     chk_hdr->next_chk = next;
@@ -150,11 +165,11 @@ void create_hdr(hdr *chk_hdr, hdr *next, hdr *prev, size_t alloc_size){
     return;
 }
 
-uintptr_t init_heap(void){
+hdr *init_heap(void){
     void *old_brk;
     if ((old_brk = sbrk(HEAP_INCR)) == (void *) -1){
-        pp(stderr, "Failed SBRK\n");
-        exit(1);
+        // NEED TO SET ERRNO TO ENOMEM
+        return NULL;
     }
 
     // Make floor divisible by 16
@@ -162,6 +177,41 @@ uintptr_t init_heap(void){
     size_t flr_diff = uint_flr - (uintptr_t) old_brk;
     hdr *ptr_flr = (hdr *) uint_flr;
     size_t size = (HEAP_INCR) - flr_diff - align16(sizeof(hdr));
-    create_hdr(ptr_flr, NULL, NULL, size);
-    return (uintptr_t) ptr_flr;
+    
+    // create_hdr(ptr_flr, NULL, NULL, size);
+    ptr_flr->free = 0;
+    ptr_flr->next_chk = NULL;
+    ptr_flr->prev_chk = NULL;
+    ptr_flr->size = size;
+    
+    return ptr_flr;
+}
+
+void print_heap(void){
+    hdr *curr_chk = flr;
+    printf("############################\n");
+    while (curr_chk != NULL){
+        printf("-------------------\n");
+        printf("Chunk Address: %p\n", curr_chk);
+        printf("Prev Address: %p\n", curr_chk->prev_chk);
+        printf("Next Address: %p\n", curr_chk->next_chk);
+        printf("Size: %ld\n", curr_chk->size);
+        printf("Free Status: %d\n", curr_chk->free);
+        printf("-------------------\n\n");
+
+        curr_chk = curr_chk->next_chk;
+    }
+}
+
+int main(void){
+    for(int i = 0; i < 8192; i++){
+        if (i ==  5281){
+            print_heap();
+            printf("5281 Aligned: %ld\n", align16(5281));
+        }
+        size_t size = i;
+        printf("%ld\n", size);
+        my_malloc(size);
+    }
+    return 0;
 }

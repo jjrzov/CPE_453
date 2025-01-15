@@ -4,8 +4,8 @@
 #include <stdio.h>
 #include <stdint.h>
 
-// #define HEAP_CHUNKS  64 * 1024
-#define HEAP_CHUNKS  512 * 1024
+#define HEAP_INCR  64 * 1024
+#define HEAP_BASE  64
 
 typedef struct hdr{
     int free;

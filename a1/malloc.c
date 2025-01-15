@@ -4,8 +4,10 @@
 #include <unistd.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <pp.h>
 
 #define BUFFER_SIZE 1500
+#define STDERR  2
 
 uintptr_t flr = NULL;
 uintptr_t tail = NULL;
@@ -13,6 +15,7 @@ uintptr_t tail = NULL;
 void *realloc(void *ptr, size_t size);
 void free(void * ptr);
 void *calloc(size_t nmemb, size_t size);
+int find_scale(int num);
 
 char buffer[BUFFER_SIZE];
 
@@ -21,96 +24,111 @@ void *malloc(size_t size){
         return NULL;
     }
     if ((hdr *) flr == NULL){
-        char *s = "INITIALIZING HEAP";
-        snprintf(buffer, BUFFER_SIZE, "%s\n", s);
-        // write(2, buffer, BUFFER_SIZE);
         flr = init_heap();  // Need to initialize heap
         tail = flr; // Update tail
     }
-    return (void *) add_chunk(size);
+    return add_chunk(size);
 
 }
 
-void *add_chunk(size_t alloc_size){
+void *add_chunk(size_t req_size){
     hdr *curr_chk = (hdr *) flr;
-    // hdr *prev_chk = NULL;
+    size_t aligned_size = align16(req_size);  // Align size of data
+    
     while (curr_chk != NULL){
         if (curr_chk->free == 0){   // Current chunk is free
-            if (curr_chk->size > alloc_size){
+            if (curr_chk->size >= aligned_size){
                 // Able to add to chunk
-                uintptr_t uint_chk = (uintptr_t) curr_chk;
-                // Calculate data ptr to return
-                uintptr_t data_ptr = uint_chk + align16(sizeof(hdr));
-
-                // Align size of data to be /16
-                size_t aligned_size = align16(alloc_size);
-                curr_chk->free = 1;
+                uintptr_t uint_curr_chk = (uintptr_t) curr_chk;
                 split_chunk(curr_chk, aligned_size);
+
+                // Calculate data address within chunk
+                uintptr_t data_ptr = uint_curr_chk + align16(sizeof(hdr));
                 return (void *) data_ptr;
             }
         }
         curr_chk = curr_chk->next_chk;
     }
     // Need more data
-    increase_heap(); // will have loop call this
-    return add_chunk(alloc_size);
+    increase_heap(aligned_size); // will have loop call this
+    return add_chunk(req_size);
 }
 
-void split_chunk(hdr *chk, size_t alloc_size){
+void split_chunk(hdr *chk, size_t des_size){
+    // Splits the given chunk into two if possible of desired size and remainder
+
     // Only make a new header if it can fit into remainder
-    if ((chk->size - alloc_size) > sizeof(hdr)){
+    if ((chk->size - des_size) > align16(sizeof(hdr))){
+
         // Can add a header into remainder
         uintptr_t uint_chk = (uintptr_t) chk;
-        uintptr_t uint_new_hdr = uint_chk + align16(sizeof(hdr)) + alloc_size;
-        hdr *ptr_new_hdr = (hdr *) uint_new_hdr;    // Calculate new hdr ptr
-        // set the new header info
-        size_t rem_data = chk->size - alloc_size - align16(sizeof(hdr));
+        uintptr_t new_hdr = uint_chk + align16(sizeof(hdr)) + des_size;
+
+        // Set the new header info
+        size_t rem_data = chk->size - des_size - align16(sizeof(hdr));
         if (chk->next_chk == NULL){
             // If adding to last node
-            create_hdr(ptr_new_hdr, NULL, chk, rem_data);
-            tail = uint_new_hdr;    // Update tail
+            create_hdr((hdr *) new_hdr, NULL, chk, rem_data);
+            tail = new_hdr;    // Update tail
         } else {
             // Not last node
-            create_hdr(ptr_new_hdr, chk->next_chk, chk, rem_data);
+            create_hdr((hdr *) new_hdr, chk->next_chk, chk, rem_data);
         }
-        chk->size = alloc_size;
-        chk->next_chk = ptr_new_hdr;
+        chk->size = des_size;
+        chk->next_chk = (hdr *) new_hdr;
     }
+
+    // If no space for header keep chunk size the same
+    // Only thing that changes is chunk no longer free
+    chk->free = 1; 
     return;
 }
 
-void increase_heap(){
-    // Add 64k to the heap
-    hdr *last_node = (hdr *) tail;
+void increase_heap(size_t size){
+    // Add 64k * n to the heap
+    int n = find_scale(size);   // Find how many multiples of 64k is needed
+
     void *old_brk;
-    if ((old_brk = sbrk(HEAP_CHUNKS)) == (void *) -1){
-        perror("Failed SBRK");
+    if ((old_brk = sbrk(n * HEAP_INCR)) == (void *) -1){
+        pp(stderr, "Failed SBRK\n");
         exit(1);
     }
 
+    hdr *last_node = (hdr *) tail;
     if (last_node->free == 0){
         // Last node is free
-        last_node->size += HEAP_CHUNKS;
+        last_node->size += (n * HEAP_INCR);
     } else {
         // Last node not free
-        uintptr_t new_hdr = align16(tail + sizeof(hdr) + last_node->size);
-        create_hdr((hdr *) new_hdr, NULL, last_node, HEAP_CHUNKS);
+        uintptr_t new_hdr = tail + align16(sizeof(hdr)) + last_node->size;
+        create_hdr((hdr *) new_hdr, NULL, last_node, n * HEAP_INCR);
         last_node->next_chk = (hdr *) new_hdr;
+        tail = new_hdr;
     }
 }
 
-void free(void * ptr){
+int find_scale(int num){
+    // Compute value of scalar for increasing heap
+    int n = ((num + HEAP_INCR - 1)/ (HEAP_INCR));
+    if (n < 1){
+        return 1;
+    }
+    return n;
+}
+
+void free(void *ptr){
     if (ptr == NULL){
         return;
     }
+
 }
 
 void *realloc(void *ptr, size_t size){
-    return;
+    return NULL;
 }
 
 void *calloc(size_t nmemb, size_t size){
-    return;
+    return NULL;
 }
 
 
@@ -134,22 +152,16 @@ void create_hdr(hdr *chk_hdr, hdr *next, hdr *prev, size_t alloc_size){
 
 uintptr_t init_heap(void){
     void *old_brk;
-    if ((old_brk = sbrk(HEAP_CHUNKS)) == (void *) -1){
-        char *s = "Failed SBRK";
-        snprintf(buffer, BUFFER_SIZE, "%s\n", s);
-        // write(2, buffer, BUFFER_SIZE);
+    if ((old_brk = sbrk(HEAP_INCR)) == (void *) -1){
+        pp(stderr, "Failed SBRK\n");
         exit(1);
     }
 
     // Make floor divisible by 16
     uintptr_t uint_flr = align16((uintptr_t) old_brk);
     size_t flr_diff = uint_flr - (uintptr_t) old_brk;
-
-    // char *s = "old_brk:";
-    // snprintf(buffer, BUFFER_SIZE, "%s %d\n", s, uint_flr);
-    // write(2, buffer, BUFFER_SIZE);
-
     hdr *ptr_flr = (hdr *) uint_flr;
-    create_hdr(ptr_flr, NULL, NULL, (HEAP_CHUNKS) - flr_diff - sizeof(hdr));
+    size_t size = (HEAP_INCR) - flr_diff - align16(sizeof(hdr));
+    create_hdr(ptr_flr, NULL, NULL, size);
     return (uintptr_t) ptr_flr;
 }

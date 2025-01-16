@@ -6,6 +6,7 @@
 #include <stdint.h>
 #include <unistd.h>
 #include <stdbool.h>
+#include <string.h>
 #include <errno.h>
 #include <pp.h>
 
@@ -27,7 +28,6 @@ void *realloc(void* ptr, size_t size);
 void *calloc(size_t nmemb, size_t size);
 void free(void* ptr);
 
-int align16(int val);
 void print_heap(void);
 
 #endif

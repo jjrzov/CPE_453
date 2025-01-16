@@ -1,11 +1,13 @@
 #include "malloc.h"
 
 int init_heap();
-
+int align16(int val);
 header *find_free_chunk(size_t req_size);
 int increase_heap(size_t req_size);
 void split_chunk(header *chk, size_t req_size);
 int find_scalar(int val);
+header *ptr_to_chunk(header *ptr);
+void merge_neighbors(header *chk);
 uintptr_t get_chk_data(header *chk);
 uintptr_t get_chk_end(header *chk);
 
@@ -46,12 +48,40 @@ void *malloc(size_t size){
 }
 
 void free(void *ptr){
-    return;
+    if (ptr == NULL){
+        return;
+    }
+
+    // Find which chunk pointer is referencing 
+    header *chk = ptr_to_chunk((header *)ptr);
+    if (chk == NULL){
+        pp(stderr, "FREE: Error Invalid Pointer\n");
+        return;
+    }
+
+    // Merge neighboring chunks if free
+    // pp(stdout, "MERGING\n");
+    merge_neighbors(chk);
 }
 
-void *realloc(void *ptr, size_t size){
-    return NULL;
-}
+// void *realloc(void *ptr, size_t size){
+//     if (head == NULL){
+//         // Need to initalize heap
+//         if (init_heap() != HEAP_CREATED){
+//             pp(stderr, "REALLOC: No Memory Available\n");
+//             return NULL;
+//         }
+//     }
+
+//     if (ptr == NULL){
+//         void *data_ptr = malloc(size);
+//         if (data_ptr == NULL){
+//             pp(stderr, "REALLOC: Failed to Allocate Data\n");
+//             return NULL;
+//         }
+//         return data_ptr;
+//     }
+// }
 
 void *calloc(size_t nmemb, size_t size){
     if (head == NULL){
@@ -64,9 +94,10 @@ void *calloc(size_t nmemb, size_t size){
 
     void *data_ptr = malloc(nmemb * size);
     if (data_ptr != NULL){
-        memset(data_ptr, 0, size);
+        return memset(data_ptr, 0, size);
     }
-    return data_ptr;
+    pp(stderr, "CALLOC: Failed to Allocate Data\n");
+    return NULL;
 }
 
 int init_heap(){
@@ -181,6 +212,53 @@ int find_scalar(int val){
         ret = 1;
     }
     return ret;
+}
+
+header *ptr_to_chunk(header *ptr){
+    // pp(stdout, "CONVERTING\n");
+    // Converts pointer to the chunk it resides in
+    header *chk = head;
+
+    while (chk != NULL){
+        if (ptr >= chk && ptr < (header *)get_chk_end(chk)){
+            return chk;
+        }
+        chk = chk->next;
+    }
+    return NULL;
+}
+
+void merge_neighbors(header *chk){
+    // Merge neighboring chunks together if they are free
+    chk->is_free = 1;
+
+    // pp(stdout, "Merging Next\n");
+    if (chk->next != NULL){
+        if (chk->next->is_free == 1){
+            chk->size += align16(HEADER_SIZE) + chk->next->size;
+            if (chk->next->next != NULL){
+                chk->next->next->prev = chk;
+            }
+
+            chk->next = chk->next->next;
+        }
+    }
+    // print_heap();
+
+    // pp(stdout, "Merging Prev\n");
+    if (chk->prev != NULL){
+        // pp(stdout, "In first if\n");
+        if (chk->prev->is_free == 1){
+            // pp(stdout, "In second if\n");
+            chk->prev->size += align16(HEADER_SIZE) + chk->size;
+            if (chk->next != NULL){
+                chk->next->prev = chk->prev;
+            }
+
+            chk->prev->next = chk->next;
+        }
+    }
+    return;
 }
 
 uintptr_t get_chk_data(header *chk){

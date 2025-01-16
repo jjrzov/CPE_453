@@ -5,15 +5,23 @@
 #include <unistd.h>
 
 int main(void){
-    // pp(stdout, "No Align: %d\n", sizeof(header));
-    // pp(stdout, "Aligned: %d\n", align16(sizeof(header)));
 
-    int i = 0;
-    for(i = 0; i < 8192; i++){
-        size_t size = i;
-        pp(stdout, "%d\n", i);
-        malloc(size);
-        // print_heap();
-    }
+    void *ptr1 = malloc(500);
+    void *ptr2 = malloc(1000);
+    void *ptr3 = malloc(1500);
+    void *ptr4 = malloc(2000);
+    void *ptr5 = malloc(2500);
+    print_heap();
+
+    free(ptr1);
+    print_heap();
+    free(ptr2);
+    print_heap();
+    free(ptr3);
+    print_heap();
+    free(ptr4);
+    print_heap();
+    free(ptr5);
+    print_heap();
     return 0;
 }

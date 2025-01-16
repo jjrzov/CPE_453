@@ -16,7 +16,6 @@ header *tail = NULL;
 
 void *malloc(size_t size){
     //DEBUG STATEMENT IF NEGATIVE INPUT
-    // pp(stdout, "MALLOC\n");
     if (head == NULL){
         // Need to initalize heap
         if (init_heap() != HEAP_CREATED){
@@ -60,28 +59,93 @@ void free(void *ptr){
     }
 
     // Merge neighboring chunks if free
-    // pp(stdout, "MERGING\n");
     merge_neighbors(chk);
 }
 
-// void *realloc(void *ptr, size_t size){
-//     if (head == NULL){
-//         // Need to initalize heap
-//         if (init_heap() != HEAP_CREATED){
-//             pp(stderr, "REALLOC: No Memory Available\n");
-//             return NULL;
-//         }
-//     }
+void *realloc(void *ptr, size_t size){
+    if (head == NULL){
+        // Need to initalize heap
+        if (init_heap() != HEAP_CREATED){
+            pp(stderr, "REALLOC: No Memory Available\n");
+            return NULL;
+        }
+    }
 
-//     if (ptr == NULL){
-//         void *data_ptr = malloc(size);
-//         if (data_ptr == NULL){
-//             pp(stderr, "REALLOC: Failed to Allocate Data\n");
-//             return NULL;
-//         }
-//         return data_ptr;
-//     }
-// }
+    if (ptr == NULL){
+        void *data_ptr = malloc(size);
+        if (data_ptr == NULL){
+            pp(stderr, "REALLOC: Failed to Allocate Data\n");
+            return NULL;
+        }
+        return data_ptr;
+    }
+
+    if (size == 0){
+        free(ptr);
+        return NULL;    // NULL???
+    }
+
+    // Find which chunk pointer is referencing 
+    header *chk = ptr_to_chunk((header *)ptr);
+    if (chk == NULL){
+        pp(stderr, "REALLOC: Error Invalid Pointer\n");
+        return NULL;
+    }
+
+    size_t aligned_size = align16(size);
+
+    if (chk->size > aligned_size){
+        // Shrinking
+        split_chunk(chk, aligned_size);
+    } 
+    
+    else if (chk->size == aligned_size){
+        return ptr;
+    } 
+    
+    else if (chk->next == NULL){
+        // Expanding in last node
+        int n = find_scalar(aligned_size);
+
+        void *old_brk;
+        if ((old_brk = sbrk(n * HEAP_INCR)) == (void *)-1){
+            errno = ENOMEM;
+            pp(stderr, "REALLOC: No Memory Available\n");
+            return NULL;
+        }
+
+        tail->size += (n * HEAP_INCR);
+        split_chunk(tail, aligned_size);
+    }
+
+    else if (chk->next->is_free == 1 && aligned_size < chk->size + 
+                                align16(HEADER_SIZE) + chk->next->size){
+        // Expanding in a sandwiched chunk with space
+        chk->size += align16(HEADER_SIZE) + chk->next->size;
+        if (chk->next->next != NULL){
+            chk->next->next->prev = chk;
+        }
+        chk->next = chk->next->next;
+        split_chunk(chk, aligned_size);
+    }
+
+    else {
+        // Expanding in a sandwiched chunk with no space
+        void *data_ptr = malloc(aligned_size);
+        if (data_ptr == NULL){
+            pp(stderr, "REALLOC: Failed to Allocate Data\n");
+            return NULL;
+        }
+
+        // Move data to new chunk
+        memmove(data_ptr, (void *) get_chk_data(chk), chk->size);
+        free(chk);
+        return data_ptr;
+    }
+
+    return ptr;
+
+}
 
 void *calloc(size_t nmemb, size_t size){
     if (head == NULL){
@@ -128,7 +192,6 @@ int align16(int val){
 }
 
 header *find_free_chunk(size_t req_size){
-    // pp(stdout, "FINDING FREE CHUNK\n");
     header *chk = head;
 
     while (chk != NULL){
@@ -141,7 +204,6 @@ header *find_free_chunk(size_t req_size){
 }
 
 int increase_heap(size_t req_size){
-    // pp(stdout, "INCREASING HEAP\n");
     int n = find_scalar(req_size);
 
     void *old_brk;
@@ -167,7 +229,6 @@ int increase_heap(size_t req_size){
 }
 
 void split_chunk(header *chk, size_t req_size){
-    // pp(stdout, "SPLITTING CHUNK\n");
     /* 
     Split Chunk into two with the first chunk being of size req_size. 
     The second chunk will be the size of the remainder, but if header cannot 
@@ -178,18 +239,15 @@ void split_chunk(header *chk, size_t req_size){
     size_t tot_rem = chk->size - req_size;
     if (tot_rem > align16(HEADER_SIZE)){    // MAYBE >=???
         // Can fit a new header
-        // pp(stdout, "making a new header\n");
         header *new_hdr = (header *)
                             (chk_addr + align16(HEADER_SIZE) + req_size);
         
-        // pp(stdout, "filling out header\n");
         new_hdr->next = chk->next;  // Set new header info
-        // pp(stdout, "here\n");
         new_hdr->prev = chk;
         new_hdr->is_free = 1;
         new_hdr->size = tot_rem - align16(HEADER_SIZE);
         
-        // pp(stdout, "updating next\n");
+        // Update neighbor chunks
         if (chk->next == NULL){
             tail = new_hdr;
         } else {
@@ -215,7 +273,6 @@ int find_scalar(int val){
 }
 
 header *ptr_to_chunk(header *ptr){
-    // pp(stdout, "CONVERTING\n");
     // Converts pointer to the chunk it resides in
     header *chk = head;
 
@@ -232,7 +289,7 @@ void merge_neighbors(header *chk){
     // Merge neighboring chunks together if they are free
     chk->is_free = 1;
 
-    // pp(stdout, "Merging Next\n");
+    // Merging Next
     if (chk->next != NULL){
         if (chk->next->is_free == 1){
             chk->size += align16(HEADER_SIZE) + chk->next->size;
@@ -243,13 +300,10 @@ void merge_neighbors(header *chk){
             chk->next = chk->next->next;
         }
     }
-    // print_heap();
 
-    // pp(stdout, "Merging Prev\n");
+    // Merging Prev
     if (chk->prev != NULL){
-        // pp(stdout, "In first if\n");
         if (chk->prev->is_free == 1){
-            // pp(stdout, "In second if\n");
             chk->prev->size += align16(HEADER_SIZE) + chk->size;
             if (chk->next != NULL){
                 chk->next->prev = chk->prev;
@@ -272,6 +326,7 @@ uintptr_t get_chk_end(header *chk){
 }
 
 void print_heap(void){
+    // Prints out linked list of headers
     header *curr_chk = head;
     pp(stdout, "############################\n");
     while (curr_chk != NULL){

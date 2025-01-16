@@ -2,31 +2,32 @@
 #define MALLOC_H
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <stdint.h>
+#include <unistd.h>
+#include <stdbool.h>
+#include <errno.h>
+#include <pp.h>
 
-#define HEAP_INCR  64 * 1024
-#define HEAP_BASE  64
+#define HEAP_INCR   65536   // 64 * 1024
+#define NO_MEMORY   -1
+#define HEAP_CREATED    1
+#define HEAP_INCREASED   2
+#define HEADER_SIZE sizeof(header)
 
-typedef struct hdr{
-    int free;
+typedef struct header {
+    struct header *next;
+    struct header *prev;
     size_t size;
-    struct hdr *next_chk;
-    struct hdr *prev_chk;
-} hdr;
+    bool is_free;
+} header;
 
-void *my_malloc(size_t size);
-void my_free(void * ptr);
-void *realloc(void *ptr, size_t size);
+void *malloc(size_t size);
+void *realloc(void* ptr, size_t size);
 void *calloc(size_t nmemb, size_t size);
+void free(void* ptr);
 
-void *add_chunk(size_t alloc_size);
-void split_chunk(hdr *chk, size_t alloc_size);
-int increase_heap(size_t size);
-int find_scale(int num);
-
-void create_hdr(hdr *chk_hdr, hdr *next, hdr *prev, size_t alloc_size);
-uintptr_t align16(uintptr_t addr);
-hdr *init_heap(void);
+int align16(int val);
 void print_heap(void);
 
 #endif

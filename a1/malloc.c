@@ -1,140 +1,52 @@
-#include <stdio.h>
 #include "malloc.h"
-#include <stdlib.h>
-#include <unistd.h>
-#include <stdint.h>
-#include <stdio.h>
-// #include <pp.h>
 
-#define BUFFER_SIZE 1500
-#define STDERR  2
+int init_heap();
 
-hdr *flr = NULL;
-hdr *tail = NULL;
+header *find_free_chunk(size_t req_size);
+int increase_heap(size_t req_size);
+void split_chunk(header *chk, size_t req_size);
+int find_scalar(int val);
+uintptr_t get_chk_data(header *chk);
+uintptr_t get_chk_end(header *chk);
 
-char buffer[BUFFER_SIZE];
+header *head = NULL;
+header *tail = NULL;
 
 void *malloc(size_t size){
-    printf("Calling Malloc\n");
+    //DEBUG STATEMENT IF NEGATIVE INPUT
+    // pp(stdout, "MALLOC\n");
+    if (head == NULL){
+        // Need to initalize heap
+        if (init_heap() != HEAP_CREATED){
+            pp(stderr, "MALLOC: No Memory Available\n");
+            return NULL;
+        }
+    }
+    
     if (size == 0){
         return NULL;
     }
-    if (flr == NULL){
-        if ((flr = init_heap()) == NULL){ // Need to initialize heap
+
+    size_t aligned_size = align16(size);
+
+    header *free_chk = find_free_chunk(aligned_size);
+    if (free_chk == NULL){
+        // Need to increase heap
+        int retval = increase_heap(aligned_size);
+        if (retval != HEAP_INCREASED){
+            pp(stderr, "MALLOC: No Memory Available\n");
             return NULL;
         }
-        tail = flr; // Update tail
-    }
-    return add_chunk(size);
-
-}
-
-void *add_chunk(size_t req_size){
-    printf("Add Chunk\n");
-    hdr *curr_chk = flr;
-    size_t aligned_size = align16(req_size);  // Align size of data
-    
-    while (curr_chk != NULL){
-        if (curr_chk->free == 0){   // Current chunk is free
-            if (curr_chk->size >= aligned_size){
-                // Able to add to chunk
-                uintptr_t uint_curr_chk = (uintptr_t) curr_chk;
-                split_chunk(curr_chk, aligned_size);
-
-                // Calculate data address within chunk
-                uintptr_t data_ptr = uint_curr_chk + align16(sizeof(hdr));
-                return (void *) data_ptr;
-            }
-        }
-        curr_chk = curr_chk->next_chk;
-    }
-    // Need more data
-    if (increase_heap(aligned_size) == -1){
-        // NEED TO SET ERRNO TO ENOMEM
-        return NULL;
-    }
-    return add_chunk(req_size);
-}
-
-void split_chunk(hdr *chk, size_t des_size){
-    printf("Split Chunk\n");
-    // Splits the given chunk into two if possible of desired size and remainder
-
-    // Only make a new header if it can fit into remainder
-    if ((chk->size - des_size) > align16(sizeof(hdr))){
-
-        // Can add a header into remainder
-        uintptr_t uint_chk = (uintptr_t) chk;
-        hdr *new_hdr = (hdr *) (uint_chk + align16(sizeof(hdr)) + des_size);
-        // Set the new header info
-        size_t rem_data = chk->size - des_size - align16(sizeof(hdr));
-
-        new_hdr->free = 0;  // Create new header
-        new_hdr->next_chk = chk->next_chk;
-        new_hdr->prev_chk = chk;
-        new_hdr->size = rem_data;
-
-        if (chk->next_chk == NULL){
-            printf("Last Node\n");
-            tail = new_hdr;
-        } else {
-            chk->next_chk->prev_chk = new_hdr;
-        }
-
-        chk->size = des_size;
-        chk->next_chk = new_hdr;
+        free_chk = tail;    // Tail was updated to fit requested size
     }
 
-    // If no space for header keep chunk size the same
-    // Only thing that changes is chunk no longer free
-    chk->free = 1; 
-    return;
-}
-
-int increase_heap(size_t size){
-    printf("Increasing Heap\n");
-    // Add 64k * n to the heap
-    int n = find_scale(size);   // Find how many multiples of 64k is needed
-
-    void *old_brk;
-    if ((old_brk = sbrk(n * HEAP_INCR)) == (void *) -1){
-        return -1;
-    }
-
-    if (tail->free == 0){
-        // Last node is free
-        tail->size += (n * HEAP_INCR);
-    } else {
-        // Last node not free
-        uintptr_t new_hdr = (uintptr_t)tail + align16(sizeof(hdr)) + tail->size;
-
-        // create_hdr((hdr *) new_hdr, NULL, tail, n * HEAP_INCR);
-        hdr *hdr_ptr = (hdr *) new_hdr;
-        hdr_ptr->free = 0;
-        hdr_ptr->next_chk = NULL;
-        hdr_ptr->prev_chk = tail;
-        hdr_ptr->size = (n * HEAP_INCR);
-
-        tail->next_chk = (hdr *) new_hdr;
-        tail = (hdr *) new_hdr; // Update tail
-    }
-    return 1;
-}
-
-int find_scale(int num){
-    // Compute value of scalar for increasing heap
-    int n = ((num + HEAP_INCR - 1)/ (HEAP_INCR));
-    if (n < 1){
-        return 1;
-    }
-    return n;
+    split_chunk(free_chk, aligned_size);
+    // DEBUG STATEMENT B/C THIS IS WHERE MALLOC ACTUAL DOES SOMETHING
+    return (void *)get_chk_data(free_chk);
 }
 
 void free(void *ptr){
-    if (ptr == NULL){
-        return;
-    }
-
+    return;
 }
 
 void *realloc(void *ptr, size_t size){
@@ -142,76 +54,157 @@ void *realloc(void *ptr, size_t size){
 }
 
 void *calloc(size_t nmemb, size_t size){
+    if (head == NULL){
+        // Need to initalize heap
+        if (init_heap() != HEAP_CREATED){
+            pp(stderr, "CALLOC: No Memory Available\n");
+            return NULL;
+        }
+    }
+
+    void *data_ptr = malloc(nmemb * size);
+    if (data_ptr != NULL){
+        memset(data_ptr, 0, size);
+    }
+    return data_ptr;
+}
+
+int init_heap(){
+    void *old_brk;
+    if ((old_brk = sbrk(HEAP_INCR)) == (void *) -1){
+        errno = ENOMEM;
+        return NO_MEMORY;
+    }
+
+    // Offset the floor to be divisible by 16
+    uintptr_t flr = align16((uintptr_t)old_brk);
+    uintptr_t flr_offset = flr - (uintptr_t)old_brk;
+
+    head = (header *) flr;  // Initialize head and tail globals
+    tail = (header *) flr;
+
+    head->next = NULL;  // Create first header
+    head->prev = NULL;
+    head->is_free = 1;
+    head->size = HEAP_INCR - flr_offset - align16(HEADER_SIZE);
+
+    return HEAP_CREATED;
+}
+
+int align16(int val){
+    // Align address to be divisible by 16 and return value
+    return (val + 15) & ~15;   // Add by 15 to always round to up
+}
+
+header *find_free_chunk(size_t req_size){
+    // pp(stdout, "FINDING FREE CHUNK\n");
+    header *chk = head;
+
+    while (chk != NULL){
+        if (chk->is_free == 1 && chk->size >= req_size){
+            return chk;
+        }
+        chk = chk->next;
+    }
     return NULL;
 }
 
+int increase_heap(size_t req_size){
+    // pp(stdout, "INCREASING HEAP\n");
+    int n = find_scalar(req_size);
 
+    void *old_brk;
+    if ((old_brk = sbrk(n * HEAP_INCR)) == (void *)-1){
+        errno = ENOMEM;
+        return NO_MEMORY;
+    }
 
+    if (tail->is_free == 1){
+        tail->size += (n * HEAP_INCR);
+    } else {
+        // Need to make new header for new space
+        header * new_hdr = (header *)get_chk_end(tail);
+        new_hdr->next = NULL;
+        new_hdr->prev = tail;
+        new_hdr->is_free = 1;
+        new_hdr->size = (n * HEAP_INCR) - align16(HEADER_SIZE);
 
-
-
-uintptr_t align16(uintptr_t addr){
-    // Align address to be divisible by 16 and return value
-    return (addr + 15) & ~15;   // Add by 15 to always round to up
+        tail->next = new_hdr;   // Update tail
+        tail = new_hdr;
+    }
+    return HEAP_INCREASED;
 }
 
-void create_hdr(hdr *chk_hdr, hdr *next, hdr *prev, size_t alloc_size){
-    printf("Creating new header\n");
-    // Create a new chunk header node for linked list
-    chk_hdr->free = 0;
-    chk_hdr->next_chk = next;
-    chk_hdr->prev_chk = prev;
-    chk_hdr->size = alloc_size;
+void split_chunk(header *chk, size_t req_size){
+    // pp(stdout, "SPLITTING CHUNK\n");
+    /* 
+    Split Chunk into two with the first chunk being of size req_size. 
+    The second chunk will be the size of the remainder, but if header cannot 
+    fit into remainder size then chunk not split and space given to first chunk
+    */ 
+
+    uintptr_t chk_addr = (uintptr_t)chk;
+    size_t tot_rem = chk->size - req_size;
+    if (tot_rem > align16(HEADER_SIZE)){    // MAYBE >=???
+        // Can fit a new header
+        // pp(stdout, "making a new header\n");
+        header *new_hdr = (header *)
+                            (chk_addr + align16(HEADER_SIZE) + req_size);
+        
+        // pp(stdout, "filling out header\n");
+        new_hdr->next = chk->next;  // Set new header info
+        // pp(stdout, "here\n");
+        new_hdr->prev = chk;
+        new_hdr->is_free = 1;
+        new_hdr->size = tot_rem - align16(HEADER_SIZE);
+        
+        // pp(stdout, "updating next\n");
+        if (chk->next == NULL){
+            tail = new_hdr;
+        } else {
+            chk->next->prev = new_hdr;
+        }
+
+        chk->size = req_size;
+        chk->next = new_hdr;
+    }
+    // If remainder did not fit a header give space to first chunk
+    chk->is_free = 0;
+
     return;
 }
 
-hdr *init_heap(void){
-    void *old_brk;
-    if ((old_brk = sbrk(HEAP_INCR)) == (void *) -1){
-        // NEED TO SET ERRNO TO ENOMEM
-        return NULL;
+int find_scalar(int val){
+    // Calculate how many increments of 64k need to be allocated
+    int ret = (val + HEAP_INCR - 1) / HEAP_INCR;
+    if (ret < 1){
+        ret = 1;
     }
+    return ret;
+}
 
-    // Make floor divisible by 16
-    uintptr_t uint_flr = align16((uintptr_t) old_brk);
-    size_t flr_diff = uint_flr - (uintptr_t) old_brk;
-    hdr *ptr_flr = (hdr *) uint_flr;
-    size_t size = (HEAP_INCR) - flr_diff - align16(sizeof(hdr));
-    
-    // create_hdr(ptr_flr, NULL, NULL, size);
-    ptr_flr->free = 0;
-    ptr_flr->next_chk = NULL;
-    ptr_flr->prev_chk = NULL;
-    ptr_flr->size = size;
-    
-    return ptr_flr;
+uintptr_t get_chk_data(header *chk){
+    // Return address of the chunk's data
+    return (uintptr_t)chk + align16(HEADER_SIZE);
+}
+
+uintptr_t get_chk_end(header *chk){
+    // Return address of the end of the chunk
+    return (uintptr_t)chk + align16(HEADER_SIZE) + chk->size;
 }
 
 void print_heap(void){
-    hdr *curr_chk = flr;
-    printf("############################\n");
+    header *curr_chk = head;
+    pp(stdout, "############################\n");
     while (curr_chk != NULL){
-        printf("-------------------\n");
-        printf("Chunk Address: %p\n", curr_chk);
-        printf("Prev Address: %p\n", curr_chk->prev_chk);
-        printf("Next Address: %p\n", curr_chk->next_chk);
-        printf("Size: %ld\n", curr_chk->size);
-        printf("Free Status: %d\n", curr_chk->free);
-        printf("-------------------\n\n");
+        pp(stdout, "-------------------\n");
+        pp(stdout, "Chunk Address: %p\n", curr_chk);
+        pp(stdout, "Prev Address: %p\n", curr_chk->prev);
+        pp(stdout, "Next Address: %p\n", curr_chk->next);
+        pp(stdout, "Size: %ld\n", curr_chk->size);
+        pp(stdout, "Free Status: %d\n", curr_chk->is_free);
+        pp(stdout, "-------------------\n\n");
 
-        curr_chk = curr_chk->next_chk;
+        curr_chk = curr_chk->next;
     }
-}
-
-int main(void){
-    for(int i = 0; i < 8192; i++){
-        if (i ==  5281){
-            print_heap();
-            printf("5281 Aligned: %ld\n", align16(5281));
-        }
-        size_t size = i;
-        printf("%ld\n", size);
-        my_malloc(size);
-    }
-    return 0;
 }

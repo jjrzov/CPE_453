@@ -327,6 +327,11 @@ void lwp_yield(void){
     thread old_thread = curr_thread;
 
     curr_thread = sched->next();    // Update current thread
+
+    if (curr_thread == NULL){
+        exit(LWPTERMSTAT(old_thread->status));
+    }
+    
     swap_rfiles(&old_thread->state, &curr_thread->state);   // Swap registers
     return;
 }

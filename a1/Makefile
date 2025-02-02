@@ -48,9 +48,6 @@ main.o: main.c
 run: main
 	./main
 
-gdb: main
-	gdb ./main
-
 clean:
 	rm -rf *.o *.a *.so main lib lib64 
 

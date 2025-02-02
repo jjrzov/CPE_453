@@ -15,7 +15,6 @@ header *head = NULL;
 header *tail = NULL;
 
 void *malloc(size_t size){
-    //DEBUG STATEMENT IF NEGATIVE INPUT
     if (head == NULL){
         // Need to initalize heap
         if (init_heap() != HEAP_CREATED){
@@ -24,7 +23,11 @@ void *malloc(size_t size){
         }
     }
     
-    if (size == 0){
+    if (size <= 0){
+        if (getenv("DEBUG_MALLOC")){
+            pp(stderr, "MALLOC: malloc(%d)\t=>\t(ptr=%p, size=%d)\n", size, 
+                        NULL, size);
+        }
         return NULL;
     }
 
@@ -42,7 +45,11 @@ void *malloc(size_t size){
     }
 
     split_chunk(free_chk, aligned_size);
-    // DEBUG STATEMENT B/C THIS IS WHERE MALLOC ACTUAL DOES SOMETHING
+    if (getenv("DEBUG_MALLOC")){
+        pp(stderr, "MALLOC: malloc(%d)\t=>\t(ptr=%p, size=%d)\n", size, 
+                    free_chk, aligned_size);
+    }
+
     return (void *)get_chk_data(free_chk);
 }
 
@@ -58,8 +65,17 @@ void free(void *ptr){
         return;
     }
 
+    if (chk->is_free == 1){
+        // Chunk already free
+        pp(stderr, "FREE: Error Pointer Previously Called\n");
+        return;
+    }
+
     // Merge neighboring chunks if free
     merge_neighbors(chk);
+    if (getenv("DEBUG_MALLOC")){
+        pp(stderr, "MALLOC: free(%p)\n", ptr);
+    }
 }
 
 void *realloc(void *ptr, size_t size){
@@ -77,12 +93,21 @@ void *realloc(void *ptr, size_t size){
             pp(stderr, "REALLOC: Failed to Allocate Data\n");
             return NULL;
         }
+        
+        if (getenv("DEBUG_MALLOC")){
+            pp(stderr, "MALLOC: realloc(%p,%d)\t=>\t(ptr=%p, size=%d)\n", ptr, 
+                        size, ptr, size);
+        }
         return data_ptr;
     }
 
     if (size == 0){
         free(ptr);
-        return NULL;    // NULL???
+        if (getenv("DEBUG_MALLOC")){
+            pp(stderr, "MALLOC: realloc(%p,%d)\t=>\t(ptr=%p, size=%d)\n", ptr, 
+                        size, ptr, size);
+        }
+        return NULL;
     }
 
     // Find which chunk pointer is referencing 
@@ -100,6 +125,11 @@ void *realloc(void *ptr, size_t size){
     } 
     
     else if (chk->size == aligned_size){
+        // Requesting same size so don't need to change anything
+        if (getenv("DEBUG_MALLOC")){
+            pp(stderr, "MALLOC: realloc(%p,%d)\t=>\t(ptr=%p, size=%d)\n", ptr, 
+                        size, chk, chk->size);
+        }
         return ptr;
     } 
     
@@ -107,20 +137,20 @@ void *realloc(void *ptr, size_t size){
         // Expanding in last node
         int n = find_scalar(aligned_size);
 
-        void *old_brk;
+        void *old_brk;  // Need to increase heap size
         if ((old_brk = sbrk(n * HEAP_INCR)) == (void *)-1){
             errno = ENOMEM;
             pp(stderr, "REALLOC: No Memory Available\n");
             return NULL;
         }
 
-        tail->size += (n * HEAP_INCR);
+        tail->size += (n * HEAP_INCR);  // Add new space to tail
         split_chunk(tail, aligned_size);
     }
 
     else if (chk->next->is_free == 1 && aligned_size < chk->size + 
                                 align16(HEADER_SIZE) + chk->next->size){
-        // Expanding in a sandwiched chunk with space
+        // Expanding in a sandwiched chunk with space in next
         chk->size += align16(HEADER_SIZE) + chk->next->size;
         if (chk->next->next != NULL){
             chk->next->next->prev = chk;
@@ -139,8 +169,21 @@ void *realloc(void *ptr, size_t size){
 
         // Move data to new chunk
         memmove(data_ptr, (void *) get_chk_data(chk), chk->size);
-        free(chk);
+        free(chk);  // Free old chunk where data used to be
+
+        if (getenv("DEBUG_MALLOC")){
+            header *new_chk = (header *) (
+                          (uintptr_t) data_ptr - align16(HEADER_SIZE));
+            pp(stderr, "MALLOC: realloc(%p,%d)\t=>\t(ptr=%p, size=%d)\n", ptr, 
+                        size, new_chk, new_chk->size);
+        }
+
         return data_ptr;
+    }
+    
+    if (getenv("DEBUG_MALLOC")){
+        pp(stderr, "MALLOC: realloc(%p,%d)\t=>\t(ptr=%p, size=%d)\n", ptr, 
+                   size, chk, chk->size);
     }
 
     return ptr;
@@ -158,13 +201,22 @@ void *calloc(size_t nmemb, size_t size){
 
     void *data_ptr = malloc(nmemb * size);
     if (data_ptr != NULL){
-        return memset(data_ptr, 0, size);
+
+        if (getenv("DEBUG_MALLOC")){
+            header *new_chk = (header *) 
+                            ((uintptr_t) data_ptr - align16(HEADER_SIZE));
+            pp(stderr, "MALLOC: calloc(%d,%d)\t=>\t(ptr=%p, size=%d)\n", nmemb, 
+                        size, new_chk, new_chk->size);
+        }
+
+        return memset(data_ptr, 0, size);   // Clear allocated data
     }
     pp(stderr, "CALLOC: Failed to Allocate Data\n");
     return NULL;
 }
 
 int init_heap(){
+    // Initialize the heap to 64k and initialize linked list
     void *old_brk;
     if ((old_brk = sbrk(HEAP_INCR)) == (void *) -1){
         errno = ENOMEM;
@@ -192,6 +244,7 @@ int align16(int val){
 }
 
 header *find_free_chunk(size_t req_size){
+    // Traverse through linkedlist for free chunk of requested size
     header *chk = head;
 
     while (chk != NULL){
@@ -204,6 +257,7 @@ header *find_free_chunk(size_t req_size){
 }
 
 int increase_heap(size_t req_size){
+    // Increase heap size by n * 64k
     int n = find_scalar(req_size);
 
     void *old_brk;
@@ -213,6 +267,7 @@ int increase_heap(size_t req_size){
     }
 
     if (tail->is_free == 1){
+        // If tail is free then can just add space to tail
         tail->size += (n * HEAP_INCR);
     } else {
         // Need to make new header for new space

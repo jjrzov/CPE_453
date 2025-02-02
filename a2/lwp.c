@@ -92,7 +92,6 @@ tid_t lwp_create(lwpfun fun, void *arg){
 
     // Set up stack
     new_thr->stack = (unsigned long *) init_stk_ptr;    
-    // TODO: COMPARE DIFFERENCES WITH ADDING STACK & ALIGN16
     new_thr->stacksize = stack_size;
 
     // Compute new top of stack pointer
@@ -100,7 +99,6 @@ tid_t lwp_create(lwpfun fun, void *arg){
     uintptr_t base_ptr = ((uintptr_t) init_stk_ptr) + stack_size - WORD;
     unsigned long *stack = (unsigned long *) base_ptr;
 
-    // stack[0] = (unsigned long) lwp_exit;   //                         ???
     stack[-1] = (unsigned long) lwp_wrap;   // Return Address
     stack[-2] = (unsigned long) saved_bp;    // "Saved" Base Pointer
 
@@ -183,7 +181,7 @@ tid_t lwp_wait(int *status){
     if (oldest_tid != main_tid){
         // Can deallocate stack
         if (status != NULL){
-            *status = oldest_thr->tid;
+            *status = oldest_thr->status;
         }
 
         removeFromTotalList(oldest_thr);
@@ -195,7 +193,6 @@ tid_t lwp_wait(int *status){
         free(oldest_thr);
     }
 
-    //MAYBE FREE EVEN IF MAIN ??? 
     return oldest_tid;
 }
 

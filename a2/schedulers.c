@@ -98,5 +98,3 @@ int qlen(void){
     // Return number of active threads in scheduler
     return schdlr_info.count;
 }
-
-// DO I WRITE A INIT OR SHUTDOWN SINCE THEY ARE JUST SET TO NULL???

@@ -2,16 +2,12 @@
 
 #define P_SHARED    0
 #define INIT_SEMA_VAL   1
-#define HUNGRY  0
-#define EATING  1
-#define CHANGING 2
 
-sem_t print_sema;
+sem_t printSema;    // Mutex for printing
 sem_t forks[NUM_PHILOSOPHERS];
-int cycles = 1;
-pthread_t philos[NUM_PHILOSOPHERS];
-int ids[NUM_PHILOSOPHERS];
-int philos_status[NUM_PHILOSOPHERS];
+int cycles = 1; // Default values for cycles
+philo philos[NUM_PHILOSOPHERS];
+
 
 int main(int argc, char *argv[]){
     if (argc > 2){
@@ -38,6 +34,9 @@ int main(int argc, char *argv[]){
 
     waitPhilosophers(); // Wait for all philosophers to finish
 
+    print_footer();
+
+    tearDownSemaphores();   // Clean up program
     return 0; // Success
 
 }
@@ -47,7 +46,7 @@ void initSemaphores(void){
     int retVal, i;
 
     // Printing Sema
-    retVal = sem_init(&print_sema, P_SHARED, INIT_SEMA_VAL);
+    retVal = sem_init(&printSema, P_SHARED, INIT_SEMA_VAL);
     if (retVal == -1){
         perror("ERROR: print Semaphore sem_init() Failed");
         exit(EXIT_FAILURE);
@@ -70,15 +69,16 @@ void initPhilosophers(void){
     int retVal, i;
 
     for (i = 0; i < NUM_PHILOSOPHERS; i++){
-        ids[i] = 'A' + i; // Set id numbers
+        philos[i].id = 'A' + i; // Set id numbers
+        philos[i].state = CHANGING;    // Philosophers start in changing state
+        philos[i].left_fork = DONT_HAVE;
+        philos[i].right_fork = DONT_HAVE;
     }
 
     for (i = 0; i < NUM_PHILOSOPHERS; i++){
-        philos_status[i] = CHANGING;    // Philosophers start in changing state
-    }
+        retVal = pthread_create(&philos[i].thread, NULL, dine, 
+                                    (void *) (&philos[i]));
 
-    for (i = 0; i < NUM_PHILOSOPHERS; i++){
-        retVal = pthread_create(&philos[i], NULL, dine, (void *) (&ids[i]));
         if (retVal == -1){
             perror("ERROR: pthread_create() Failed");
             exit(EXIT_FAILURE);
@@ -88,12 +88,117 @@ void initPhilosophers(void){
     return;
 }
 
+void *dine(void *arg){
+    // Philosophers loop through eating and thinking for cycles amount of times
+    philo *phil = (philo *) arg;
+    int philo_index = phil->id - 'A';   // Get index in philosopher list from id
+    print_status(); // Inital print
+    
+    int i;
+    for (i = 0; i < cycles; i++){
+        eat(philo_index);  // Try and eat      
+
+        philos[philo_index].state = CHANGING;   // Changing from eat to think
+        print_status();
+
+        think(philo_index);    // Drop forks and start thinking
+    }
+
+    philos[philo_index].state = CHANGING;   // Philosopher ends in changing
+    print_status();
+
+    pthread_exit(NULL);
+    return NULL;    // Exit thread
+}
+
+void eat(int p_index){
+    // Philosopher needs both forks to eat
+    
+    // Not yet eating thus philosopher is currently changing states
+    philos[p_index].state = CHANGING;
+    print_status();
+
+    // Even philosophers take right fork first
+    // Odd philosophers take left fork first
+    int dir = p_index % 2;
+    int right_hand = (p_index + RIGHT) % NUM_PHILOSOPHERS;
+    int left_hand = p_index;
+
+    if (dir == 0){
+        // Even philosopher
+        takeFork(p_index, right_hand, RIGHT);
+        takeFork(p_index, left_hand, LEFT);
+
+    } else {
+        // Odd philosopher
+        takeFork(p_index, left_hand, LEFT);
+        takeFork(p_index, right_hand, RIGHT);
+    }
+        
+    philos[p_index].state = EATING; // Now has both forks thus eating
+    print_status();
+
+    dawdle();   // Eat for random amount of time
+    print_status();
+
+    return;
+}
+
+void takeFork(int p_index, int f_index, int side){
+    // Take given fork and update the status
+    sem_wait(&forks[f_index]);  // Decrement the specfic fork semaphore
+
+    // Update which fork was taken
+    if (side == RIGHT){
+        philos[p_index].right_fork = HAVE;
+    } else if (side == LEFT){
+        philos[p_index].left_fork = HAVE;
+    }
+
+    print_status();
+    return;
+}
+
+void think(int p_index){
+    // Place down both forks one at a time before thinking
+    int right_hand = (p_index + RIGHT) % NUM_PHILOSOPHERS;
+    int left_hand = (p_index);
+
+    // Arbitrarily give right fork first
+    giveFork(p_index, right_hand, RIGHT);
+    giveFork(p_index, left_hand, LEFT);
+
+    philos[p_index].state = THINKING;   // Dropped both forks thus can think
+    print_status();
+
+    dawdle();   // Think for random amount of time
+    print_status();
+
+    return;
+}
+
+void giveFork(int p_index, int f_index, int side){
+    // Give back fork philosopher has and update status
+    
+    // Update status then return semaphore
+    if (side == RIGHT){
+        philos[p_index].right_fork = DONT_HAVE;
+    } else {
+        philos[p_index].left_fork = DONT_HAVE;
+    }
+
+    sem_post(&forks[f_index]);  // Give sema back
+
+    print_status();
+    return;
+}
+
 void waitPhilosophers(void){
     // Wait for all philosophers to end
     int retVal, i;
 
     for (i = 0; i < NUM_PHILOSOPHERS; i++){
-        retVal = pthread_join(ids[i], NULL);
+        retVal = pthread_join(philos[i].thread, NULL);
         if (retVal == -1){
             perror("ERROR: pthread_join() Failed");
             exit(EXIT_FAILURE);
@@ -103,21 +208,27 @@ void waitPhilosophers(void){
     return;
 }
 
-void dine(void *id){
-    int myID = *(int *) id;
+void tearDownSemaphores(void){
+    // Destroy Semaphores
+    int retVal, i;
 
+    // Printing Sema
+    retVal = sem_destroy(&printSema);
+    if (retVal == -1){
+        perror("ERROR: print Semaphore sem_destroy() Failed");
+        exit(EXIT_FAILURE);
+    }
 
-    
-    pthread_exit(NULL);
-    return NULL;    // Exit thread
-}
+    // Fork Semas
+    for (i = 0; i < NUM_PHILOSOPHERS; i++){
+        retVal = sem_destroy(&forks[i]);
+        if (retVal == -1){
+            perror("ERROR: fork Semaphores sem_destroy() Failed");
+            exit(EXIT_FAILURE);
+        }
+    }
 
-void pickUpForks(int philoID){
-    // Have philopoher pick up a fork
-    // Even ID philosophers pick up their right hand fork
-    // Odd ID philosophers pick up their left hand fork
-    int direction = philoID % 2;
-    
+    return;
 }
 
 void dawdle(void){

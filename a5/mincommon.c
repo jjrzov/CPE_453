@@ -158,7 +158,7 @@ void parsePartitionTable(Args_t *args, PartitionTableEntry_t *part_table) {
 void parseSuperBlock(Args_t *args, PartitionTableEntry_t *part_table,
                         SuperBlock_t *super_blk) {
 
-    uint8_t super_blk_addr;
+    size_t super_blk_addr;
     if (args->has_part) {
         super_blk_addr = (part_table->lFirst * SECTOR_SIZE) + SB_OFFSET;
     } else {

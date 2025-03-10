@@ -44,6 +44,7 @@
 #define MAX_NAME_SIZE   (60)
 #define MAX_PATH_SIZE   (4096)
 
+#define MINLS_BOOL      (1)
 #define MIN_MINLS_ARGS  (2)
 #define MIN_MINGET_ARGS (3)
 
@@ -114,6 +115,11 @@ typedef struct __attribute__ ((__packed__)) Args_t {
 
 
 void parseArgs(int argc, char *argv[], bool func, Args_t* args);
+void parsePartitionTable(Args_t *args, PartitionTableEntry_t *part_table);
+void parseSuperBlock(Args_t *args, PartitionTableEntry_t *part_table,
+    SuperBlock_t *super_blk);
+bool isValidFS(SuperBlock_t *block);
+bool isValidPartition(uint8_t *block);
 void printUsage(bool func);
 
 #endif // MINCOMMON_H

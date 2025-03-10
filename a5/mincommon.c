@@ -54,7 +54,42 @@ void parseArgs(int argc, char *argv[], bool func, Args_t* args) {
         }
     }
 
+    // Optind now points to image
+    if (optind < argc) {
+        if ((args->image = fopen(argv[optind], "r")) == NULL) {
+            perror("Error: Could not open image\n");
+            exit(EXIT_FAILURE);  
+        }
+    }
+    
+    optind++;   // Increment to next arg
+    if (func && MINLS_BOOL) {
+        // MINLS => get path
+        if (optind < argc) {
+            strncpy(args->image_path, argv[optind], MAX_PATH_SIZE);
+        } else {
+            // Set default as path
+            strncpy(args->image_path, DEFAULT_PATH, MAX_PATH_SIZE);
+        }
+    } else {
+        // MINGET => get src and dest path
+        if (optind < argc) {
+            strncpy(args->src_path, argv[optind], MAX_PATH_SIZE);
+            
+            optind++;
+            if (optind < argc) {
+                if ((args->dest = fopen(argv[optind], "w")) == NULL) {
+                    perror("Error: Could not open destination\n");
+                    exit(EXIT_FAILURE);  
+                } 
+            } else {
+                // Set to default (stdout)
+                args->dest = stdout;    // stdout already a file pointer
+            }
 
+        }
+    }
+    return;
 }
 
 void printUsage(bool func) {

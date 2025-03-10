@@ -113,4 +113,8 @@ typedef struct __attribute__ ((__packed__)) Args_t {
     FILE *dest;
 } Args_t;
 
+
+void parseArgs(int argc, char *argv[], bool func, Args_t* args);
+void printUsage(bool func);
+
 #endif // MINCOMMON_H

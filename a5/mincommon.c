@@ -1,6 +1,6 @@
 #include "mincommon.h"
 
-void parseArgs(int argc, char *argv[], bool func, Args_t* args) {
+void parseArgs(int argc, char *argv[], bool func, Args_t *args) {
     // Initialize args struct
     args->part_number = -1;
     args->subpart_number = -1;
@@ -61,7 +61,7 @@ void parseArgs(int argc, char *argv[], bool func, Args_t* args) {
             exit(EXIT_FAILURE);  
         }
     }
-    
+
     optind++;   // Increment to next arg
     if (func && MINLS_BOOL) {
         // MINLS => get path
@@ -86,10 +86,100 @@ void parseArgs(int argc, char *argv[], bool func, Args_t* args) {
                 // Set to default (stdout)
                 args->dest = stdout;    // stdout already a file pointer
             }
-
         }
     }
     return;
+}
+
+void parsePartitionTable(Args_t *args, PartitionTableEntry_t *part_table) {
+    if (!args->has_part) {
+        return; // Unpartitioned
+    }
+
+    // Get Boot Sector which has partition table
+    uint8_t block[BOOT_BLOCK_SIZE];
+
+    fseek(args->image, 0, SEEK_SET);    // Set to beginning of file
+    fread(block, sizeof(uint8_t), BOOT_BLOCK_SIZE, args->image);
+
+    // Check for partition signature
+    if (!isValidPartition(block)) {
+        perror("Error: Not a valid partition\n");
+        exit(EXIT_FAILURE);
+    }
+
+    /**
+     * Go to offset for partition table (0x1BE), then skip over partition
+     * tables until partition number being requested 
+     */ 
+    PartitionTableEntry_t *temp_table;
+    temp_table = ((PartitionTableEntry_t *) (block + PART_TBL_OFFSET)) 
+                        + args->part_number;
+
+    if (temp_table->type != MINIX_PART_TYPE) {
+        perror("Error: Invalid Partition Type\n");
+        exit(EXIT_FAILURE);
+    }
+
+    if (args->subpart_number < 0) {
+        // No subpartitions
+        memcpy(part_table, temp_table, sizeof(PartitionTableEntry_t));
+        return;
+    }
+
+    /**
+     * Currently have the requested primary partition's table, need to get to 
+     * the boot sector (first sector) of the primary partition (has 
+     * subpartitions)  
+     */
+    fseek(args->image, temp_table->lFirst * SECTOR_SIZE, SEEK_SET);
+    fread(block, sizeof(uint8_t), BOOT_BLOCK_SIZE, args->image);
+
+    // Perform same operations as primary partition
+    if (!isValidPartition(block)) {
+        perror("Error: Not a valid partition\n");
+        exit(EXIT_FAILURE);
+    }
+
+    temp_table = ((PartitionTableEntry_t *) (block + PART_TBL_OFFSET)) 
+                        + args->subpart_number;
+
+    if (temp_table->type != MINIX_PART_TYPE) {
+        perror("Error: Invalid Partition Type\n");
+        exit(EXIT_FAILURE);
+    }
+
+    memcpy(part_table, temp_table, sizeof(PartitionTableEntry_t));
+    return;
+}
+
+void parseSuperBlock(Args_t *args, PartitionTableEntry_t *part_table,
+                        SuperBlock_t *super_blk) {
+
+    uint8_t super_blk_addr;
+    if (args->has_part) {
+        super_blk_addr = (part_table->lFirst * SECTOR_SIZE) + SB_OFFSET;
+    } else {
+        super_blk_addr = SB_OFFSET; // Not partitioned
+    }
+
+    fseek(args->image, super_blk_addr, SEEK_SET);
+    fread(super_blk, sizeof(SuperBlock_t), 1, args->image);
+    
+    if (!isValidFS(super_blk)) {
+        perror("Error: Invalid filesystem\n");
+        exit(EXIT_FAILURE);
+    }
+
+    return;
+}
+
+bool isValidFS(SuperBlock_t *block) {
+    return (block->magic == MINIX_MAGIC_NUM);
+}
+
+bool isValidPartition(uint8_t *block) {
+    return (block[510] == VALID_BYTE510) && (block[511] == VALID_BYTE511);
 }
 
 void printUsage(bool func) {

@@ -1,0 +1,49 @@
+1. The second user would still have access to the file because they never called rm(unlink). Thus MINIX will still have a file that exists for user 2 but not 1.
+2. If you have many IO bound processes, multiprogramming could increase CPU utilization because one process could do work while one process waits for IO. If there are only compute bound processses, then only 1 process would run until its time runs out. Thus mixing both practices would boost utilization.
+3. (1000000000 * .5) / 1000 = .5e9 / 1e3 = .5e6 = 500k system calls.
+4. A race condition is any situation where the precise sequence of events affects the correctness of the outcome of the whole process. The symptoms of race conditions are nondeterministic behaviors.
+5. Yes, the busy waiting solution does work for this situation.
+6. The OS should keep track of a counter and waitlist for a given semaphore. When performing up or down operations, the OS should disable interrupts until the operation is completed. Any blocked processes should be added back into the scheduler during the critical section.
+7. The only reason I could see a reason for a process being run twice in the list is if some sort of priority was given to this specific process which deems it necessary to gain more processing time.
+8. 
+ a)
+	ABCDE->ABCDE->ABCDE->ACDE->ADE->ADE->AD->A->A->A
+	
+	Process: A	B	C	D	E
+	Time(s): 30	12	17	27	25
+	
+	MTT = 111 / 5 = 22.5s
+
+ b)
+	BBB->EEEEEEE->AAAAAAAAAA->CCCC->DDDDDDD
+	
+	Process: A	B	C	D	E
+	Time(s): 20	3	24	31	10
+
+	MTT = 88 / 5 = 17s
+
+c)
+	AAAAAAAAAA->BBB->CCCC->DDDDDDD->EEEEEE
+	
+	Process: A	B	C	D	E
+	Time(s): 10	13	17	24	30
+
+	MTT = 94 / 5 = 18.8s
+
+d)
+	BBB->CCCC->EEEEEE->DDDDDDD->AAAAAAAAAA
+	
+	Process: A	B	C	D	E
+	Time(s): 30	3	7	20	13
+
+	MTT = 73 / 5 = 14.6s
+
+9. 
+	ABCD|E->ABCD|E->ABCD|E->ACD|E->AD|E->AD|E->AD|E->AD|->AD|->AD|->AD|->D|->D|->D|->D|
+	
+	Process: A	B	C	D	E
+	Time(s): 27.5	11	15.5	34	22
+	
+	MTT = 110 / 5 = 22s
+
+10. It must swap 5 times because everytime it runs it runs for twice as long as it did.

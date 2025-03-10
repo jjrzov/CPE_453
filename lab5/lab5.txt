@@ -1,0 +1,66 @@
+1. idle time = probability ^ (program count) = .5^(4) = 1/16 => 6.25%
+
+2. 
+ a) 
+	20 VA maps to virtual page 0 which is mapped to page frame 2
+	Offset = 20 - (0 * 1024) = 20
+	PA = (8 * 1024) + Offset = 8192 + 20 = 8212
+	
+ b)
+	4100 VA maps to virtual page 1 which is mapped to page frame 1
+	Offset = 4100 - (4 * 1024) = 4
+	PA = (4 * 1024) + Offset = 4096 + 4 = 4100
+
+c)
+	8300 VA maps to virtual page 2 which is mapped to page frame 6
+	Offset - 8300 - (8 * 1024) = 108
+	PA = (24 * 1024) + Offset = 24576 + 108 = 24684
+
+3. 32 bit address space with a 2 level page table of 9 bit PT1 field and a 11 bit PT2 field. Thus there is a 12 bit Offset field. This allows for pages to be 4KB with 2^(PT1 + PT2) = 2^20 pages.
+
+4. 
+ a) NRU will replace the lowest non empty class which is page 0 as it is a Class 0 (not referenced, not modified).
+ b) FIFO will remove page 2 as it is the oldest page.
+ c) LRU will remove page 1 because it was referenced the longest ago.
+ d) 2nd Chance will remove page 0 because it is the oldest page with a cleared R bit.
+
+5. 0 7 1 3 2 7 2 0 1 3
+   x x x x - - - - - -
+   $ $ $ $ x - - - - -
+   o $ $ $ $ o - - - -
+   o $ $ $ $ o o - - -
+   o $ $ $ $ o o x - -
+   o o $ $ $ o o $ o -
+   o o $ $ $ o o $ o o
+
+   6 faults with final contents being 1, 3, 2, 0
+
+6. 0 7 1 3 2 7 2 0 1 3
+   x x x x - - - - - -
+   $ $ $ $ x - - - - -
+   o $ $ $ $ o - - - -
+   o $ $ $ $ o o - - -
+   o $ $ $ $ o o x - -
+   o $ o $ $ o o $ x - 
+   o $ o o $ o o $ $ x
+   o o o o $ o o $ $ $
+
+   8 faults with final contents being 2, 0, 1, 3
+
+7. 15000 * 2001us = 30.015s total for page faults
+   60 - 30.015 = 29.985s total run time
+   30.015 / 2 = 15.0075s new total page fault time
+   29.985 + 15.0075 = 44.9925 new run time
+
+8. Users cannot just read the raw directories as there is more than just the raw files in directories such as their inodes.
+
+9. If a file is short, it could fit into the same block as its inode allowing for only one disk access.
+
+10. probability of cache miss = (1 - h) => time for a miss = 40 * (1 - h)
+    probability of cache hit = h
+    mean time = 40 * (1 - h) + h
+
+11. no clusters time = 100 blocks * (5ms seek + 10ms rotate + 20us transfer) = 1502ms
+    clusters time = 100 blocks * (100us seek + 10ms rotate + 20us transfer) = 1012ms
+
+12. Eleanor is right because copying inodes will be very costly and inefficient.

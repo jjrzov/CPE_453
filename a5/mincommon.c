@@ -5,11 +5,13 @@ void parseArgs(int argc, char *argv[], bool func, Args_t *args) {
     args->part_number = -1;
     args->subpart_number = -1;
 
-    if ((func && MINLS_BOOL) && (argc < MIN_MINLS_ARGS)) {
-        printUsage(MINLS_BOOL);
+    if (func && (argc < MIN_MINLS_ARGS)) {
+        // if minls and valid number of arguments
+        printUsage(func);
         exit(EXIT_FAILURE);
-    } else if ((func && !MINLS_BOOL) && (argc < MIN_MINGET_ARGS)) {
-        printUsage(!MINLS_BOOL);
+    } else if (!func && (argc < MIN_MINGET_ARGS)) {
+        // if minget and valid number of arguments
+        printUsage(func);
         exit(EXIT_FAILURE);
     }
 
@@ -63,7 +65,7 @@ void parseArgs(int argc, char *argv[], bool func, Args_t *args) {
     }
 
     optind++;   // Increment to next arg
-    if (func && MINLS_BOOL) {
+    if (func) {
         // MINLS => get path
         if (optind < argc) {
             strncpy(args->image_path, argv[optind], MAX_PATH_SIZE);
@@ -183,7 +185,7 @@ bool isValidPartition(uint8_t *block) {
 }
 
 void printUsage(bool func) {
-    if (func && MINLS_BOOL) {
+    if (func) {
         fprintf(stderr,
             "usage: minls [ -v ] [ -p num [ -s num ] ] imagefile [ path ]\n"
             "Options:\n"

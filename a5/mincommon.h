@@ -44,7 +44,6 @@
 #define MAX_NAME_SIZE   (60)
 #define MAX_PATH_SIZE   (4096)
 
-#define MINLS_BOOL      (1)
 #define MIN_MINLS_ARGS  (2)
 #define MIN_MINGET_ARGS (3)
 

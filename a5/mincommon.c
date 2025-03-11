@@ -1,6 +1,9 @@
 #include "mincommon.h"
 
+Inode_t *inodes;
+
 Inode_t findInode(Args_t *args, size_t zone_size, intptr_t partition_addr) {
+    printf("Entered findInode: %s\n", args->image_path);
     char *path_copy = args->image_path;
     char *path_token = strtok(path_copy, "/");
 
@@ -15,9 +18,13 @@ Inode_t findInode(Args_t *args, size_t zone_size, intptr_t partition_addr) {
     while (path_token) {
         int i, j;
         found = false;
+        printf("Path Token: %s, Inode Size: %i\n", path_token, bytes_left);
 
         for (i = 0;  i < DIRECT_ZONES && bytes_left > 0; i++) {
+        // for (i = 0;  i < DIRECT_ZONES; i++) {
+            printf("Entered Direct Zones\n");
             uint32_t curr_zone = curr_inode->zone[i];
+            printf("curr_zone: %d\n", curr_zone);
             uint32_t num_bytes = zone_size;
 
             // if number of bytes left is less than the size of zone
@@ -40,9 +47,11 @@ Inode_t findInode(Args_t *args, size_t zone_size, intptr_t partition_addr) {
 
             // traverse through directory entries in zone
             uint32_t num_dirs = num_bytes / sizeof(DirEntry_t);
+            printf("num_dirs: %d\n", num_dirs);
             for (j = 0; j < num_dirs; j++) {
                 // index into zone_buff to access current directory entry
                 DirEntry_t *curr_dir = (DirEntry_t*) zone_buff + j;
+                printf("%s\n", curr_dir->name);
 
                 if (curr_dir->inode == 0) { // directory deleted
                     continue;

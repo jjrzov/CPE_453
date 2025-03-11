@@ -22,4 +22,6 @@ int main(int argc, char *argv[]) {
 
     fseek(args.image, inode_addr, SEEK_SET);    // Go to inode 1 address
     fread(inodes, sizeof(Inode_t), super_blk.ninodes, args.image);
+
+    findInode(&args, zone_size, part_addr);
 }

@@ -121,5 +121,8 @@ void parseSuperBlock(Args_t *args, PartitionTableEntry_t *part_table,
 bool isValidFS(SuperBlock_t *block);
 bool isValidPartition(uint8_t *block);
 void printUsage(bool func);
+Inode_t findInode(Args_t *args, size_t zone_size, intptr_t partition_addr)
+
+extern Inode_t *inodes;
 
 #endif // MINCOMMON_H

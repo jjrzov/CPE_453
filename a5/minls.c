@@ -1,8 +1,10 @@
 #include "mincommon.h"
-void printInodeDirs(uint32_t ind, Args_t *args, size_t zone_size, intptr_t partition_addr, 
-                    size_t block_size);
-void printZone(Args_t *args, intptr_t zone_addr, size_t zone_size, uint32_t num_bytes);
+void printInodeDirs(uint32_t ind, Args_t *args, size_t zone_size, 
+                    intptr_t partition_addr, size_t block_size);
+void printZone(Args_t *args, intptr_t zone_addr, size_t zone_size, 
+                uint32_t num_bytes);
 void printPerms(Inode_t *inode, char *name);
+void printPath(Args_t *args);
 
 Inode_t *inodes;
 
@@ -23,26 +25,37 @@ int main(int argc, char *argv[]) {
     size_t inode_addr = part_addr + 
                             ((2 + super_blk.i_blocks + super_blk.z_blocks) *
                             super_blk.blocksize);
-    // printf("Calculated: \n   super_blk.blocksize: %d\n   super_blk.log_zone_size: %d\n   zone_size: %lu\n   part_addr: %lu\n   inode_addr: %lu\n", super_blk.blocksize, super_blk.log_zone_size, zone_size, part_addr, inode_addr);
 
     fseek(args.image, inode_addr, SEEK_SET);    // Go to inode 1 address
     fread(inodes, sizeof(Inode_t), super_blk.ninodes, args.image);
 
     uint32_t found_inode_ind = findInode(&args, zone_size, part_addr, 
                                             super_blk.blocksize);
-    printf("Found inode number: %d\n", found_inode_ind);
+    // printf("Found inode number: %d\n", found_inode_ind);
 
     if (!found_inode_ind) {
         perror("Error: File not found\n");
         exit(EXIT_FAILURE);
     }
-    printInodeDirs(found_inode_ind, &args, zone_size, part_addr, super_blk.blocksize);
+    printPath(&args);
+    printInodeDirs(found_inode_ind, &args, zone_size, part_addr, 
+                    super_blk.blocksize);
 }
 
+void printPath(Args_t *args) {
+    char *path_copy = args->image_path;
+    char *path_token = strtok(path_copy, "/");
 
-void printInodeDirs(uint32_t ind, Args_t *args, size_t zone_size, intptr_t partition_addr, 
-                    size_t block_size) {
-    printf("Entered findInode with path: %s\n", args->image_path);
+    while (path_token) {
+        printf("/%s", path_token);
+        path_token = strtok(NULL, "/");
+    }
+    printf(":\n");
+}
+
+void printInodeDirs(uint32_t ind, Args_t *args, size_t zone_size, 
+                    intptr_t partition_addr, size_t block_size) {
+    // printf("Entered findInode with path: %s\n", args->image_path);
 
     uint32_t curr_inode_ind = ind - 1;
     Inode_t *curr_inode = inodes + curr_inode_ind;
@@ -54,7 +67,7 @@ void printInodeDirs(uint32_t ind, Args_t *args, size_t zone_size, intptr_t parti
     uint32_t bytes_left = curr_inode->size;
 
     for (i = 0;  i < DIRECT_ZONES && bytes_left > 0; i++) {
-        printf("Entered Direct Zones\n");
+        // printf("Entered Direct Zones\n");
         uint32_t curr_zone = curr_inode->zone[i];
         uint32_t num_bytes = zone_size;
 
@@ -82,7 +95,7 @@ void printInodeDirs(uint32_t ind, Args_t *args, size_t zone_size, intptr_t parti
         if (curr_inode->indirect == 0) {
             // TODO: huh??
         } else {
-            printf("Entered Indirect Zones\n");
+            // printf("Entered Indirect Zones\n");
             intptr_t indirect_addr = partition_addr + 
                                         (curr_inode->indirect * zone_size);
             fseek(args->image, indirect_addr, SEEK_SET);
@@ -90,9 +103,9 @@ void printInodeDirs(uint32_t ind, Args_t *args, size_t zone_size, intptr_t parti
                     INDIRECT_ZONES, args->image);
 
             for (i = 0;  i < INDIRECT_ZONES && bytes_left > 0; i++) {
-                printf("Entered Direct Zones\n");
+                // printf("Entered Direct Zones\n");
                 uint32_t curr_zone = indirect_zones[i];
-                printf("curr_zone: %d\n", curr_zone);
+                // printf("curr_zone: %d\n", curr_zone);
                 uint32_t num_bytes = block_size; // TODO: why block size
 
                 // if number of bytes left is less than the size of zone
@@ -120,7 +133,8 @@ void printInodeDirs(uint32_t ind, Args_t *args, size_t zone_size, intptr_t parti
     //TODO: double indirect zones
 }
 
-void printZone(Args_t *args, intptr_t zone_addr, size_t zone_size, uint32_t num_bytes) {
+void printZone(Args_t *args, intptr_t zone_addr, size_t zone_size, 
+                uint32_t num_bytes) {
     uint8_t zone_buff[zone_size];
     int j;
     // seek/read num_bytes at zone address

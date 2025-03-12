@@ -4,7 +4,7 @@ Inode_t *inodes;
 
 uint32_t findInode(Args_t *args, size_t zone_size, intptr_t partition_addr, 
                     size_t block_size) {
-    printf("Entered findInode with path: %s\n", args->image_path);
+    // printf("Entered findInode with path: %s\n", args->image_path);
     char *path_copy = args->image_path;
     char *path_token = strtok(path_copy, "/");
 
@@ -23,7 +23,7 @@ uint32_t findInode(Args_t *args, size_t zone_size, intptr_t partition_addr,
         int i;
         found = false;
         uint32_t bytes_left = curr_inode->size;
-        printf("Path Token: %s\n", path_token);
+        // printf("Path Token: %s\n", path_token);
 
         for (i = 0;  i < DIRECT_ZONES && bytes_left > 0; i++) {
             uint32_t curr_zone = curr_inode->zone[i];
@@ -137,7 +137,7 @@ uint32_t checkZone(Args_t *args, intptr_t zone_addr, size_t zone_size,
             continue;
         } else if (strcmp(curr_dir->name, path_token) == 0) {
             // if name of directory entry matches path_token
-            printf("Found!\n");
+            // printf("Found!\n");
 
             // update current inode to found directory
             return curr_dir->inode;

@@ -22,7 +22,6 @@ uint32_t findInode(Args_t *args, size_t zone_size, intptr_t partition_addr,
         printf("Path Token: %s\n", path_token);
 
         for (i = 0;  i < DIRECT_ZONES && bytes_left > 0; i++) {
-            printf("Entered Direct Zones\n");
             uint32_t curr_zone = curr_inode->zone[i];
             uint32_t num_bytes = zone_size;
 
@@ -42,7 +41,7 @@ uint32_t findInode(Args_t *args, size_t zone_size, intptr_t partition_addr,
             // seek/read num_bytes at zone address
             intptr_t zone_addr = partition_addr + (curr_zone * zone_size);
             int ind = checkZone(args, zone_addr, zone_size, 
-                                    path_token, num_bytes);
+                                    path_token, num_bytes, false);
             bytes_left -= num_bytes;
 
             if (ind) {
@@ -57,7 +56,6 @@ uint32_t findInode(Args_t *args, size_t zone_size, intptr_t partition_addr,
             if (curr_inode->indirect == 0) {
                 // TODO: huh??
             } else {
-                printf("Entered Indirect Zones\n");
                 intptr_t indirect_addr = partition_addr + 
                                             (curr_inode->indirect * zone_size);
                 fseek(args->image, indirect_addr, SEEK_SET);
@@ -65,9 +63,7 @@ uint32_t findInode(Args_t *args, size_t zone_size, intptr_t partition_addr,
                         INDIRECT_ZONES, args->image);
 
                 for (i = 0;  i < INDIRECT_ZONES && bytes_left > 0; i++) {
-                    printf("Entered Direct Zones\n");
                     uint32_t curr_zone = indirect_zones[i];
-                    printf("curr_zone: %d\n", curr_zone);
                     uint32_t num_bytes = block_size; // TODO: why block size
 
                     // if number of bytes left is less than the size of zone
@@ -87,7 +83,7 @@ uint32_t findInode(Args_t *args, size_t zone_size, intptr_t partition_addr,
                     intptr_t zone_addr = partition_addr + 
                                             (curr_zone * zone_size);
                     int ind = checkZone(args, zone_addr, zone_size, 
-                                            path_token, num_bytes);
+                                            path_token, num_bytes, false);
                     bytes_left -= num_bytes;
 
                     if (ind) {
@@ -114,7 +110,7 @@ uint32_t findInode(Args_t *args, size_t zone_size, intptr_t partition_addr,
 
 // TODO: is this worth it
 uint32_t checkZone(Args_t *args, intptr_t zone_addr, size_t zone_size, 
-                char *path_token, uint32_t num_bytes) {
+                char *path_token, uint32_t num_bytes, bool print) {
     uint8_t zone_buff[zone_size];
     int j;
     // seek/read num_bytes at zone address
@@ -126,10 +122,12 @@ uint32_t checkZone(Args_t *args, intptr_t zone_addr, size_t zone_size,
     for (j = 0; j < num_dirs; j++) {
         // index into zone_buff to access current directory entry
         DirEntry_t *curr_dir = (DirEntry_t*) zone_buff + j;
-        // printf("%s\n", curr_dir->name);
 
         if (curr_dir->inode == 0) { // directory deleted
             continue;
+        } else if (print) { 
+            printf("%s\n", curr_dir->name);
+            return 0;
         } else if (strcmp(curr_dir->name, path_token) == 0) {
             // if name of directory entry matches path_token
             printf("Found!\n");

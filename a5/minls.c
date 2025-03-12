@@ -1,8 +1,6 @@
 #include "mincommon.h"
 uint32_t printInodeDirs(uint32_t ind, Args_t *args, size_t zone_size, intptr_t partition_addr, 
                     size_t block_size);
-uint32_t printZone(Args_t *args, intptr_t zone_addr, size_t zone_size, 
-                char *path_token, uint32_t num_bytes);
 
 Inode_t *inodes;
 
@@ -78,8 +76,8 @@ uint32_t printInodeDirs(uint32_t ind, Args_t *args, size_t zone_size, intptr_t p
 
         // seek/read num_bytes at zone address
         intptr_t zone_addr = partition_addr + (curr_zone * zone_size);
-        int ind = printZone(args, zone_addr, zone_size, 
-                                path_token, num_bytes);
+        int ind = checkZone(args, zone_addr, zone_size, 
+                                path_token, num_bytes, true);
         bytes_left -= num_bytes;
 
         if (ind) {
@@ -123,8 +121,8 @@ uint32_t printInodeDirs(uint32_t ind, Args_t *args, size_t zone_size, intptr_t p
                 // seek/read num_bytes at zone address
                 intptr_t zone_addr = partition_addr + 
                                         (curr_zone * zone_size);
-                int ind = printZone(args, zone_addr, zone_size, 
-                                        path_token, num_bytes);
+                int ind = checkZone(args, zone_addr, zone_size, 
+                                        path_token, num_bytes, true);
                 bytes_left -= num_bytes;
 
                 if (ind) {
@@ -143,29 +141,4 @@ uint32_t printInodeDirs(uint32_t ind, Args_t *args, size_t zone_size, intptr_t p
     } else {
         return 0;
     }
-}
-
-// TODO: is this worth it
-uint32_t printZone(Args_t *args, intptr_t zone_addr, size_t zone_size, 
-                char *path_token, uint32_t num_bytes) {
-    uint8_t zone_buff[zone_size];
-    int j;
-    // seek/read num_bytes at zone address
-    fseek(args->image, zone_addr, SEEK_SET);
-    fread(zone_buff, sizeof(uint8_t), num_bytes, args->image);
-
-    // iterate through directory entries in zone
-    uint32_t num_dirs = num_bytes / sizeof(DirEntry_t);
-    for (j = 0; j < num_dirs; j++) {
-        // index into zone_buff to access current directory entry
-        DirEntry_t *curr_dir = (DirEntry_t*) zone_buff + j;
-
-        if (curr_dir->inode == 0) { // directory deleted
-            continue;
-        } else {
-            printf("%s\n", curr_dir->name);
-        }
-    }
-
-    return 0;
 }

@@ -221,19 +221,19 @@ void getPerms(Inode_t *inode, char *buffer) {
         buffer[6] = '-'; 
     }
 
-    if (inode->mode & GROUP_READ) { 
+    if (inode->mode & OTHER_READ) { 
         buffer[7] = 'r'; 
     } else { 
         buffer[7] = '-'; 
     }
 
-    if (inode->mode & GROUP_WRITE) { 
+    if (inode->mode & OTHER_WRITE) { 
         buffer[8] = 'w'; 
     } else { 
         buffer[8] = '-'; 
     }
 
-    if (inode->mode & GROUP_EXEC) { 
+    if (inode->mode & OTHER_EXEC) { 
         buffer[9] = 'x'; 
     } else { 
         buffer[9] = '-'; 

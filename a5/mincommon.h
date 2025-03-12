@@ -121,8 +121,8 @@ void parseSuperBlock(Args_t *args, PartitionTableEntry_t *part_table,
 bool isValidFS(SuperBlock_t *block);
 bool isValidPartition(uint8_t *block);
 void printUsage(bool func);
-uint32_t findInode(Args_t *args, size_t zone_size, intptr_t partition_addr, 
-                    size_t block_size);
+uint32_t findInode(char *path, Args_t *args, size_t zone_size, 
+                    intptr_t partition_addr, size_t block_size);
 void printSuperBlock(SuperBlock_t *sb);
 uint32_t checkZone(Args_t *args, intptr_t zone_addr, size_t zone_size, 
                 char *path_token, uint32_t num_bytes);

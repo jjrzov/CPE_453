@@ -16,6 +16,7 @@ int main(int argc, char *argv[]) {
     SuperBlock_t super_blk;
 
     parseArgs(argc, argv, MINLS_BOOL, &args);
+    // printf("Path?: %s, %s\n", args.image_path, args.src_path);
     parsePartitionTable(&args, &part_table);
     parseSuperBlock(&args, &part_table, &super_blk);
 
@@ -30,8 +31,8 @@ int main(int argc, char *argv[]) {
 
     fseek(args.image, inode_addr, SEEK_SET);    // Go to inode 1 address
     fread(inodes, sizeof(Inode_t), super_blk.ninodes, args.image);
-    uint32_t found_inode_ind = findInode(&args, zone_size, part_addr, 
-                                            super_blk.blocksize);
+    uint32_t found_inode_ind = findInode(args.image_path, &args, zone_size, 
+                                            part_addr, super_blk.blocksize);
     // printf("Found inode number: %d\n", found_inode_ind);
 
     if (!found_inode_ind) {

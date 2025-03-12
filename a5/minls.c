@@ -24,7 +24,7 @@ int main(int argc, char *argv[]) {
     size_t zone_size = super_blk.blocksize << super_blk.log_zone_size;
 
     // Get Inodes
-    inodes = (Inode_t *) malloc(sizeof(Inode_t) * super_blk.i_blocks);
+    inodes = (Inode_t *) malloc(sizeof(Inode_t) * super_blk.ninodes);
     size_t inode_addr = part_addr + 
                             ((2 + super_blk.i_blocks + super_blk.z_blocks) *
                             super_blk.blocksize);

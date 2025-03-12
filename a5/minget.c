@@ -38,7 +38,7 @@ int main(int argc, char *argv[]) {
 
     Inode_t *found_inode = inodes + found_inode_ind - 1;
 
-    if (found_inode->mode & DIRECTORY) {
+    if ((found_inode->mode & FILE_TYPE_MASK) != REGULAR_FILE) {
         perror("Error: Not a file\n");
         exit(EXIT_FAILURE);
     }

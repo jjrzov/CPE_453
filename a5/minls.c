@@ -180,9 +180,9 @@ void getPerms(Inode_t *inode, char *buffer) {
     // Print out perms for given inode
     buffer[10] = '\0';  // Add null terminator
 
-    if (inode->mode & REGULAR_FILE) {
+    if ((inode->mode & FILE_TYPE_MASK) == REGULAR_FILE) {
         buffer[0] = '-';
-    } else if (inode->mode & DIRECTORY) {
+    } else if ((inode->mode & FILE_TYPE_MASK) == DIRECTORY) {
         buffer[0] = 'd';
     }
 

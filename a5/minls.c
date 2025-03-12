@@ -28,7 +28,6 @@ int main(int argc, char *argv[]) {
 
     fseek(args.image, inode_addr, SEEK_SET);    // Go to inode 1 address
     fread(inodes, sizeof(Inode_t), super_blk.ninodes, args.image);
-
     uint32_t found_inode_ind = findInode(&args, zone_size, part_addr, 
                                             super_blk.blocksize);
     // printf("Found inode number: %d\n", found_inode_ind);
@@ -43,7 +42,8 @@ int main(int argc, char *argv[]) {
 }
 
 void printPath(Args_t *args) {
-    char *path_copy = args->image_path;
+    char path_copy[MAX_PATH_SIZE];
+    strcpy(path_copy, args->image_path);
     char *path_token = strtok(path_copy, "/");
 
     while (path_token) {

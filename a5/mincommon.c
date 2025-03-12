@@ -154,7 +154,7 @@ void parseArgs(int argc, char *argv[], bool func, Args_t *args) {
     }
 
     int opt;
-    while ((opt = getopt(argc, argv, "vp:s")) != -1) {
+    while ((opt = getopt(argc, argv, "vp:s:")) != -1) {
         switch (opt) {
             case 'v':
                 args->verbose = true;

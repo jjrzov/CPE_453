@@ -3,7 +3,8 @@ void printInodeDirs(uint32_t ind, Args_t *args, size_t zone_size,
                     intptr_t partition_addr, size_t block_size);
 void printZone(Args_t *args, intptr_t zone_addr, size_t zone_size, 
                 uint32_t num_bytes);
-void printPerms(Inode_t *inode, char *name);
+void getPerms(Inode_t *inode, char *buffer);
+void printFileInfo(Inode_t *inode, char *name);
 void printPath(Args_t *args);
 
 Inode_t *inodes;
@@ -45,6 +46,10 @@ void printPath(Args_t *args) {
     char path_copy[MAX_PATH_SIZE];
     strcpy(path_copy, args->image_path);
     char *path_token = strtok(path_copy, "/");
+
+    if (!path_token) {
+        printf("/");
+    }
 
     while (path_token) {
         printf("/%s", path_token);
@@ -148,17 +153,84 @@ void printZone(Args_t *args, intptr_t zone_addr, size_t zone_size,
         DirEntry_t *curr_dir = (DirEntry_t*) zone_buff + j;
 
         if (curr_dir->inode == 0) { // directory deleted
-            if (args->verbose) {
-                printf("%s\n", curr_dir->name);
-            }
             continue;
         } else { 
-            printf("%s\n", curr_dir->name);
-            printPerms(curr_dir->inode, curr_dir->name);
+            printFileInfo(inodes + curr_dir->inode - 1, curr_dir->name);
         }
     }
 }
 
-void printPerms(Inode_t *inode, char *name) {
+void printFileInfo(Inode_t *inode, char *name) {
+    char bit_buffer[10];
+    
+    getPerms(inode, bit_buffer);
+    printf("%s", bit_buffer);
+    printf("%*d", 9, inode->size);
+    printf(" %s\n", name);
 
+}
+
+void getPerms(Inode_t *inode, char *buffer) {
+    // Print out perms for given inode
+    buffer[10] = '\0';  // Add null terminator
+
+    if (inode->mode & REGULAR_FILE) {
+        buffer[0] = '-';
+    } else if (inode->mode & DIRECTORY) {
+        buffer[0] = 'd';
+    }
+
+    if (inode->mode & OWNER_READ) { 
+        buffer[1] = 'r'; 
+    } else { 
+        buffer[1] = '-'; 
+    }
+
+    if (inode->mode & OWNER_WRITE) { 
+        buffer[2] = 'w'; 
+    } else { 
+        buffer[2] = '-'; 
+    }
+
+    if (inode->mode & OWNER_EXEC) { 
+        buffer[3] = 'x'; 
+    } else { 
+        buffer[3] = '-'; 
+    }
+
+    if (inode->mode & GROUP_READ) { 
+        buffer[4] = 'r'; 
+    } else { 
+        buffer[4] = '-'; 
+    }
+
+    if (inode->mode & GROUP_WRITE) { 
+        buffer[5] = 'w'; 
+    } else { 
+        buffer[5] = '-'; 
+    }
+
+    if (inode->mode & GROUP_EXEC) { 
+        buffer[6] = 'x'; 
+    } else { 
+        buffer[6] = '-'; 
+    }
+
+    if (inode->mode & GROUP_READ) { 
+        buffer[7] = 'r'; 
+    } else { 
+        buffer[7] = '-'; 
+    }
+
+    if (inode->mode & GROUP_WRITE) { 
+        buffer[8] = 'w'; 
+    } else { 
+        buffer[8] = '-'; 
+    }
+
+    if (inode->mode & GROUP_EXEC) { 
+        buffer[9] = 'x'; 
+    } else { 
+        buffer[9] = '-'; 
+    }
 }

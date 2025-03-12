@@ -32,11 +32,17 @@ int main(int argc, char *argv[]) {
     if (!found_inode_ind) {
         perror("Error: File not found\n");
         exit(EXIT_FAILURE);
-    }
+    } 
 
     // printf("Args: %s, %s\n", args.src_path, args.dest);
 
     Inode_t *found_inode = inodes + found_inode_ind - 1;
+
+    if (found_inode->mode & DIRECTORY) {
+        perror("Error: Not a file\n");
+        exit(EXIT_FAILURE);
+    }
+
     printInodeFileContents(found_inode_ind, &args, zone_size, part_addr, 
                     super_blk.blocksize);
 }

@@ -8,6 +8,10 @@ uint32_t findInode(Args_t *args, size_t zone_size, intptr_t partition_addr,
     char *path_copy = args->image_path;
     char *path_token = strtok(path_copy, "/");
 
+    char path_buffer[MAX_PATH_SIZE];
+    path_buffer[0] = '/';
+    int path_offset = 1;
+
     bool found = true;
     Inode_t *curr_inode = inodes;
     uint32_t curr_inode_ind = 0;
@@ -98,6 +102,12 @@ uint32_t findInode(Args_t *args, size_t zone_size, intptr_t partition_addr,
         //TODO: double indirect zones
 
         // increment path_token
+        strncpy(path_buffer + path_offset, path_token, 
+                    sizeof(char) * strlen(path_token));
+        
+        path_buffer[path_offset] = '/';
+        path_offset += strlen(path_token) + 1;
+        printf("PATH: %s\n", path_buffer);
         path_token = strtok(NULL, "/");
     }
 

@@ -2,6 +2,7 @@
 void printInodeDirs(uint32_t ind, Args_t *args, size_t zone_size, intptr_t partition_addr, 
                     size_t block_size);
 void printZone(Args_t *args, intptr_t zone_addr, size_t zone_size, uint32_t num_bytes);
+void printPerms(Inode_t *inode, char *name);
 
 Inode_t *inodes;
 
@@ -133,9 +134,17 @@ void printZone(Args_t *args, intptr_t zone_addr, size_t zone_size, uint32_t num_
         DirEntry_t *curr_dir = (DirEntry_t*) zone_buff + j;
 
         if (curr_dir->inode == 0) { // directory deleted
+            if (args->verbose) {
+                printf("%s\n", curr_dir->name);
+            }
             continue;
         } else { 
             printf("%s\n", curr_dir->name);
+            printPerms(curr_dir->inode, curr_dir->name);
         }
     }
+}
+
+void printPerms(Inode_t *inode, char *name) {
+
 }

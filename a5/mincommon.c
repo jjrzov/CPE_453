@@ -41,7 +41,7 @@ uint32_t findInode(Args_t *args, size_t zone_size, intptr_t partition_addr,
             // seek/read num_bytes at zone address
             intptr_t zone_addr = partition_addr + (curr_zone * zone_size);
             int ind = checkZone(args, zone_addr, zone_size, 
-                                    path_token, num_bytes, false);
+                                    path_token, num_bytes);
             bytes_left -= num_bytes;
 
             if (ind) {
@@ -83,7 +83,7 @@ uint32_t findInode(Args_t *args, size_t zone_size, intptr_t partition_addr,
                     intptr_t zone_addr = partition_addr + 
                                             (curr_zone * zone_size);
                     int ind = checkZone(args, zone_addr, zone_size, 
-                                            path_token, num_bytes, false);
+                                            path_token, num_bytes);
                     bytes_left -= num_bytes;
 
                     if (ind) {
@@ -110,7 +110,7 @@ uint32_t findInode(Args_t *args, size_t zone_size, intptr_t partition_addr,
 
 // TODO: is this worth it
 uint32_t checkZone(Args_t *args, intptr_t zone_addr, size_t zone_size, 
-                char *path_token, uint32_t num_bytes, bool print) {
+                char *path_token, uint32_t num_bytes) {
     uint8_t zone_buff[zone_size];
     int j;
     // seek/read num_bytes at zone address
@@ -125,9 +125,6 @@ uint32_t checkZone(Args_t *args, intptr_t zone_addr, size_t zone_size,
 
         if (curr_dir->inode == 0) { // directory deleted
             continue;
-        } else if (print) { 
-            printf("%s\n", curr_dir->name);
-            return 0;
         } else if (strcmp(curr_dir->name, path_token) == 0) {
             // if name of directory entry matches path_token
             printf("Found!\n");

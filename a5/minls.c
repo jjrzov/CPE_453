@@ -6,7 +6,7 @@ void printZone(Args_t *args, intptr_t zone_addr, size_t zone_size,
 void getPerms(Inode_t *inode, char *buffer);
 void printFileInfo(Inode_t *inode, char *name);
 void printPath(Args_t *args);
-void getName(Args_t *args, char *name);
+void getFilePath(Args_t *args, char *name);
 
 Inode_t *inodes;
 
@@ -40,41 +40,26 @@ int main(int argc, char *argv[]) {
     }
 
     Inode_t *found_inode = inodes + found_inode_ind - 1;
+    char file_name[MAX_NAME_SIZE];
+    getFilePath(&args, file_name);
     if (found_inode->mode & DIRECTORY) {
-        printPath(&args);
+        printf("/%s:\n", file_name);
         printInodeDirs(found_inode_ind, &args, zone_size, part_addr, 
                     super_blk.blocksize);
     } else {
-        char file_name[MAX_NAME_SIZE];
-        getName(&args, file_name);
         printFileInfo(found_inode, file_name);
     }
 }
 
-void printPath(Args_t *args) {
-    char path_copy[MAX_PATH_SIZE];
-    strcpy(path_copy, args->image_path);
-    char *path_token = strtok(path_copy, "/");
-
-    if (!path_token ) {
-        printf("/");
-    }
-
-    while (path_token) {
-        printf("/%s", path_token);
-        path_token = strtok(NULL, "/");
-    }
-    printf(":\n");
-}
-
-void getName(Args_t *args, char *name) {
+void getFilePath(Args_t *args, char *name) {
     char path_copy[MAX_PATH_SIZE];
     strcpy(path_copy, args->image_path);
     char *path_token = strtok(path_copy, "/");
 
     while (path_token) {
-        strcpy(name, path_token);
+        strcat(name, path_token);
         path_token = strtok(NULL, "/");
+        if (path_token) strcat(name, "/");
     }
 }
 

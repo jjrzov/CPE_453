@@ -8,7 +8,7 @@ uint32_t findInode(Args_t *args, size_t zone_size, intptr_t partition_addr,
     char *path_copy = args->image_path;
     char *path_token = strtok(path_copy, "/");
 
-    bool found = false;
+    bool found = true;
     Inode_t *curr_inode = inodes;
     uint32_t curr_inode_ind = 0;
 

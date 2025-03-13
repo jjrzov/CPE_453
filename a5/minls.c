@@ -50,6 +50,10 @@ int main(int argc, char *argv[]) {
     }
 }
 
+/**
+ * Saves formatted path to file in given char * argument 
+ * (removes duplicate delimiters)
+ */
 void getFilePath(Args_t *args, char *name) {
     char path_copy[MAX_PATH_SIZE];
     strcpy(path_copy, args->image_path);
@@ -62,6 +66,10 @@ void getFilePath(Args_t *args, char *name) {
     }
 }
 
+/**
+ * Traverses through zones of given inode index and prints file info contained
+ * in the zones
+ */
 void printInodeDirs(uint32_t ind, Args_t *args, size_t zone_size, 
                     intptr_t partition_addr, size_t block_size) {
     Inode_t *curr_inode = inodes + ind - 1;
@@ -207,6 +215,9 @@ void printInodeDirs(uint32_t ind, Args_t *args, size_t zone_size,
     }
 }
 
+/**
+ * Prints the file info of all  directory entries in a given zone
+ */
 void printZone(Args_t *args, intptr_t zone_addr, size_t zone_size, 
                 uint32_t num_bytes) {
     uint8_t zone_buff[zone_size];
@@ -229,6 +240,9 @@ void printZone(Args_t *args, intptr_t zone_addr, size_t zone_size,
     }
 }
 
+/**
+ * Prints permissions, size, and name of file formatted
+ */
 void printFileInfo(Inode_t *inode, char *name) {
     char bit_buffer[10];
     
@@ -239,6 +253,9 @@ void printFileInfo(Inode_t *inode, char *name) {
 
 }
 
+/**
+ * Prints file permissions
+ */
 void getPerms(Inode_t *inode, char *buffer) {
     // Print out perms for given inode
     buffer[10] = '\0';  // Add null terminator

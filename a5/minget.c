@@ -43,7 +43,9 @@ int main(int argc, char *argv[]) {
                     zone_size);
 }
 
-
+/**
+ * Traverses through zones of given inode index and writes src file to dest
+ */
 void printInodeFileContents(uint32_t ind, Args_t *args, size_t zone_size, 
                     intptr_t partition_addr, size_t block_size) {
     uint32_t curr_inode_ind = ind - 1;

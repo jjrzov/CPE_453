@@ -124,7 +124,7 @@ void printInodeFileContents(uint32_t ind, Args_t *args, size_t zone_size,
                 // printf("Entered Direct Zones\n");
                 uint32_t curr_zone = indirect_zones[i];
                 // printf("curr_zone: %d\n", curr_zone);
-                uint32_t num_bytes = block_size; // TODO: why block size
+                uint32_t num_bytes = zone_buff; // TODO: why block size
 
                 // if number of bytes left is less than the size of zone
                 if (bytes_left < block_size) {
@@ -160,7 +160,7 @@ void printInodeFileContents(uint32_t ind, Args_t *args, size_t zone_size,
             
             uint32_t read_bytes = hole_bytes;
             if (bytes_left < hole_bytes) {
-                read_bytes -= bytes_left;
+                read_bytes = bytes_left;
             }
 
             memset(zone_buff, 0, block_size);
@@ -189,7 +189,7 @@ void printInodeFileContents(uint32_t ind, Args_t *args, size_t zone_size,
             
                     uint32_t read_bytes = hole_bytes;
                     if (bytes_left < hole_bytes) {
-                        read_bytes -= bytes_left;
+                        read_bytes = bytes_left;
                     }
 
                     memset(zone_buff, 0, block_size);
@@ -197,24 +197,24 @@ void printInodeFileContents(uint32_t ind, Args_t *args, size_t zone_size,
                     // Get amount of blocks and remaning data
                     uint32_t num_blocks = read_bytes / block_size;
                     // maybe get remaining  ???
-                    for (i = 0; i < num_blocks; i++) {
+                    for (int j = 0; j < num_blocks; j++) {
                         fwrite(zone_buff, sizeof(char), block_size, args->dest);
                     }
 
                     bytes_left -= read_bytes;
-                    
+
                     continue;   // Skip to next indirect
                 }
 
                 // Process direct zones of indirect zones
                 intptr_t indirect_addr = partition_addr + 
-                                        (curr_inode->indirect * zone_size);
+                                        (double_zones[i] * zone_size);
                 fseek(args->image, indirect_addr, SEEK_SET);
                 fread(indirect_zones, sizeof(uint32_t), 
                         INDIRECT_ZONES, args->image);
 
-                for (i = 0;  i < INDIRECT_ZONES && bytes_left > 0; i++) {
-                    uint32_t curr_zone = indirect_zones[i];
+                for (int k = 0;  k < INDIRECT_ZONES && bytes_left > 0; k++) {
+                    uint32_t curr_zone = indirect_zones[k];
                     uint32_t num_bytes = block_size; // TODO: why block size
                     
                     // if number of bytes left is less than the size of zone
@@ -225,6 +225,10 @@ void printInodeFileContents(uint32_t ind, Args_t *args, size_t zone_size,
 
                     // check if deleted zone
                     if (curr_zone == 0) {
+                        memset(zone_buff, 0, bytes_left);
+                        fwrite(zone_buff, sizeof(char), bytes_left, 
+                                        args->dest);
+                        
                         // decrement number of bytes left to read
                         bytes_left -= num_bytes;
                         continue;

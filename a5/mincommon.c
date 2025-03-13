@@ -156,8 +156,8 @@ uint32_t findInode(char *path, Args_t *args, size_t zone_size,
                     fread(indirect_zones, sizeof(uint32_t), 
                             INDIRECT_ZONES, args->image);
 
-                    for (i = 0;  i < INDIRECT_ZONES && bytes_left > 0; i++) {
-                        uint32_t curr_zone = indirect_zones[i];
+                    for (int j = 0;  j < INDIRECT_ZONES && bytes_left > 0; j++){
+                        uint32_t curr_zone = indirect_zones[j];
                         uint32_t num_bytes = block_size; // TODO: why block size
                         
                         // if number of bytes left is less than the size of zone

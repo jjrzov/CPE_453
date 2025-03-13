@@ -118,10 +118,11 @@ uint32_t findInode(char *path, Args_t *args, size_t zone_size,
         if (!found && bytes_left > 0) {
             if (curr_inode->two_indirect == 0) {
                 // Hole detected => zones referred to are to be treated as zero
-                uint32_t hole_bytes = (INDIRECT_ZONES * block_size);
+                uint32_t hole_bytes = (INDIRECT_ZONES * INDIRECT_ZONES * 
+                                            block_size);
                 
                 if (bytes_left < hole_bytes) {
-                    bytes_left -= bytes_left;
+                    bytes_left = 0; // If all holes then its done
                 } else {
                     bytes_left -= hole_bytes;    
                 }
@@ -134,33 +135,56 @@ uint32_t findInode(char *path, Args_t *args, size_t zone_size,
                 INDIRECT_ZONES, args->image);
 
                 for (i = 0;  i < INDIRECT_ZONES && bytes_left > 0; i++) {
-                    uint32_t curr_zone = double_zones[i];
-                    uint32_t num_bytes = block_size; // TODO: why block size
+                    uint32_t curr_indirect_zone = double_zones[i];
 
-                    // if number of bytes left is less than the size of zone
-                    if (bytes_left < block_size) {
-                        // number of bytes to read should be bytes left
-                        num_bytes = bytes_left;
+                    if (curr_indirect_zone == 0) {
+                        // Hole within the indirect zone
+                        uint32_t hole_bytes = (INDIRECT_ZONES * block_size);
+                
+                        if (bytes_left < hole_bytes) {
+                            bytes_left -= bytes_left;
+                        } else {
+                            bytes_left -= hole_bytes;
+                        }
+                        continue;   // Skip to next indirect
                     }
 
-                    // check if deleted zone
-                    if (curr_zone == 0) {
-                        // decrement number of bytes left to read
+                    // Process direct zones of indirect zones
+                    intptr_t indirect_addr = partition_addr + 
+                                            (curr_inode->indirect * zone_size);
+                    fseek(args->image, indirect_addr, SEEK_SET);
+                    fread(indirect_zones, sizeof(uint32_t), 
+                            INDIRECT_ZONES, args->image);
+
+                    for (i = 0;  i < INDIRECT_ZONES && bytes_left > 0; i++) {
+                        uint32_t curr_zone = indirect_zones[i];
+                        uint32_t num_bytes = block_size; // TODO: why block size
+                        
+                        // if number of bytes left is less than the size of zone
+                        if (bytes_left < block_size) {
+                            // number of bytes to read should be bytes left
+                            num_bytes = bytes_left;
+                        }
+
+                        // check if deleted zone
+                        if (curr_zone == 0) {
+                            // decrement number of bytes left to read
+                            bytes_left -= num_bytes;
+                            continue;
+                        }
+
+                        // seek/read num_bytes at zone address
+                        intptr_t zone_addr = partition_addr + 
+                                                (curr_zone * zone_size);
+                        int ind = checkZone(args, zone_addr, zone_size, 
+                                                path_token, num_bytes);
                         bytes_left -= num_bytes;
-                        continue;
-                    }
 
-                    // seek/read num_bytes at zone address
-                    intptr_t zone_addr = partition_addr + 
-                                            (curr_zone * zone_size);
-                    int ind = checkZone(args, zone_addr, zone_size, 
-                                            path_token, num_bytes);
-                    bytes_left -= num_bytes;
-
-                    if (ind) {
-                        curr_inode_ind = ind - 1;
-                        curr_inode = inodes + curr_inode_ind;
-                        found = true;
+                        if (ind) {
+                            curr_inode_ind = ind - 1;
+                            curr_inode = inodes + curr_inode_ind;
+                            found = true;
+                        }
                     }
                 }
             }
@@ -396,7 +420,7 @@ void printSuperBlock(SuperBlock_t *sb) {
     printf("      z_blocks: %d\n", sb->z_blocks);
     printf("      firstdata: %d\n", sb->firstdata);
     printf("      log_zone_size: %d\n", sb->log_zone_size);
-    printf("      max_file: %d\n", sb->max_file);
+    printf("      max_file: %u\n", sb->max_file);
     printf("      zones: %d\n", sb->zones);
     printf("      magic: %d\n", sb->magic);
     printf("      blocksize: %d\n", sb->blocksize);

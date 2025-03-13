@@ -27,7 +27,7 @@ int main(int argc, char *argv[]) {
     fseek(args.image, inode_addr, SEEK_SET);    // Go to inode 1 address
     fread(inodes, sizeof(Inode_t), super_blk.ninodes, args.image);
     uint32_t found_inode_ind = findInode(args.src_path, &args, zone_size, 
-                                            part_addr, super_blk.blocksize);
+                                            part_addr, zone_size);
     // printf("Inode: %d\n", found_inode_ind);
     if (!found_inode_ind) {
         perror("Error: File not found\n");
@@ -44,7 +44,7 @@ int main(int argc, char *argv[]) {
     }
 
     printInodeFileContents(found_inode_ind, &args, zone_size, part_addr, 
-                    super_blk.blocksize);
+                    zone_size);
 }
 
 
@@ -124,7 +124,7 @@ void printInodeFileContents(uint32_t ind, Args_t *args, size_t zone_size,
                 // printf("Entered Direct Zones\n");
                 uint32_t curr_zone = indirect_zones[i];
                 // printf("curr_zone: %d\n", curr_zone);
-                uint32_t num_bytes = zone_buff; // TODO: why block size
+                uint32_t num_bytes = block_size; // TODO: why block size
 
                 // if number of bytes left is less than the size of zone
                 if (bytes_left < block_size) {

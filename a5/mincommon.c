@@ -359,6 +359,7 @@ void parsePartitionTable(Args_t *args, PartitionTableEntry_t *part_table) {
     if (args->subpart_number < 0) {
         // No subpartitions
         memcpy(part_table, temp_table, sizeof(PartitionTableEntry_t));
+        printPartitionTable(part_table, PRI);
         return;
     }
 
@@ -385,6 +386,7 @@ void parsePartitionTable(Args_t *args, PartitionTableEntry_t *part_table) {
     }
 
     memcpy(part_table, temp_table, sizeof(PartitionTableEntry_t));
+    printPartitionTable(part_table, !PRI);
     return;
 }
 
@@ -410,6 +412,25 @@ void parseSuperBlock(Args_t *args, PartitionTableEntry_t *part_table,
     }
 
     return;
+}
+
+void printPartitionTable(PartitionTableEntry_t *pt, bool sub) {
+    if (!sub) {
+        printf("Partition Table:\n");
+    } else {
+        printf("SubPartition Table:\n");
+    }
+
+    printf("    bootind: %d\n", pt->bootind);
+    printf("    start_head: %d\n", pt->start_head);
+    printf("    start_sec: %d\n", pt->start_sec);
+    printf("    start_cyl: %d\n", pt->start_cyl);
+    printf("    type: %d\n", pt->type);
+    printf("    end_head: %d\n", pt->end_head);
+    printf("    end_sec: %d\n", pt->end_sec);
+    printf("    end_cyl: %d\n", pt->end_cyl);
+    printf("    lFirst: %d\n", pt->lFirst);
+    printf("    size: %d\n", pt->size);
 }
 
 void printSuperBlock(SuperBlock_t *sb) {

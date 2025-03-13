@@ -47,6 +47,7 @@
 #define MINLS_BOOL      (1)
 #define MIN_MINLS_ARGS  (2)
 #define MIN_MINGET_ARGS (3)
+#define PRI         (1)
 
 typedef struct __attribute__ ((__packed__)) PartitionTableEntry_t {
     uint8_t bootind;        //  Boot magic number (0x80 if bootable)
@@ -123,6 +124,7 @@ bool isValidPartition(uint8_t *block);
 void printUsage(bool func);
 uint32_t findInode(char *path, Args_t *args, size_t zone_size, 
                     intptr_t partition_addr, size_t block_size);
+void printPartitionTable(PartitionTableEntry_t *pt, bool sub);
 void printSuperBlock(SuperBlock_t *sb);
 uint32_t checkZone(Args_t *args, intptr_t zone_addr, size_t zone_size, 
                 char *path_token, uint32_t num_bytes);

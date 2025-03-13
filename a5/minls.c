@@ -16,7 +16,6 @@ int main(int argc, char *argv[]) {
     SuperBlock_t super_blk;
 
     parseArgs(argc, argv, MINLS_BOOL, &args);
-    // printf("Path?: %s, %s\n", args.image_path, args.src_path);
     parsePartitionTable(&args, &part_table);
     parseSuperBlock(&args, &part_table, &super_blk);
 
@@ -33,7 +32,6 @@ int main(int argc, char *argv[]) {
     fread(inodes, sizeof(Inode_t), super_blk.ninodes, args.image);
     uint32_t found_inode_ind = findInode(args.image_path, &args, zone_size, 
                                             part_addr, super_blk.blocksize);
-    // printf("Found inode number: %d\n", found_inode_ind);
 
     if (!found_inode_ind) {
         perror("Error: File not found\n");
@@ -66,10 +64,7 @@ void getFilePath(Args_t *args, char *name) {
 
 void printInodeDirs(uint32_t ind, Args_t *args, size_t zone_size, 
                     intptr_t partition_addr, size_t block_size) {
-    // printf("Entered findInode with path: %s\n", args->image_path);
-
-    uint32_t curr_inode_ind = ind - 1;
-    Inode_t *curr_inode = inodes + curr_inode_ind;
+    Inode_t *curr_inode = inodes + ind - 1;
 
     uint32_t indirect_zones[INDIRECT_ZONES];
     uint32_t double_zones[INDIRECT_ZONES];
@@ -78,7 +73,6 @@ void printInodeDirs(uint32_t ind, Args_t *args, size_t zone_size,
     uint32_t bytes_left = curr_inode->size;
 
     for (i = 0;  i < DIRECT_ZONES && bytes_left > 0; i++) {
-        // printf("Entered Direct Zones\n");
         uint32_t curr_zone = curr_inode->zone[i];
         uint32_t num_bytes = zone_size;
 
@@ -101,12 +95,17 @@ void printInodeDirs(uint32_t ind, Args_t *args, size_t zone_size,
         bytes_left -= num_bytes;
     }
 
-    //TODO: indirect zones
     if (bytes_left > 0) {
         if (curr_inode->indirect == 0) {
-            // TODO: huh??
+            // Hole detected => zones referred to are to be treated as zero
+            uint32_t hole_bytes = (INDIRECT_ZONES * block_size);
+            
+            if (bytes_left < hole_bytes) {
+                bytes_left -= bytes_left;
+            } else {
+                bytes_left -= hole_bytes;
+            }
         } else {
-            // printf("Entered Indirect Zones\n");
             intptr_t indirect_addr = partition_addr + 
                                         (curr_inode->indirect * zone_size);
             fseek(args->image, indirect_addr, SEEK_SET);
@@ -114,10 +113,8 @@ void printInodeDirs(uint32_t ind, Args_t *args, size_t zone_size,
                     INDIRECT_ZONES, args->image);
 
             for (i = 0;  i < INDIRECT_ZONES && bytes_left > 0; i++) {
-                // printf("Entered Direct Zones\n");
                 uint32_t curr_zone = indirect_zones[i];
-                // printf("curr_zone: %d\n", curr_zone);
-                uint32_t num_bytes = block_size; // TODO: why block size
+                uint32_t num_bytes = block_size;
 
                 // if number of bytes left is less than the size of zone
                 if (bytes_left < block_size) {
@@ -141,7 +138,73 @@ void printInodeDirs(uint32_t ind, Args_t *args, size_t zone_size,
         }
     }
 
-    //TODO: double indirect zones
+    if (bytes_left > 0) {
+        if (curr_inode->two_indirect == 0) {
+            // Hole detected => zones referred to are to be treated as zero
+            uint32_t hole_bytes = (INDIRECT_ZONES * INDIRECT_ZONES * 
+                                        block_size);
+            
+            if (bytes_left < hole_bytes) {
+                bytes_left = 0; // If all holes then its done
+            } else {
+                bytes_left -= hole_bytes;    
+            }
+
+        } else {
+            intptr_t duo_indirect_addr = partition_addr + 
+                                    (curr_inode->two_indirect * zone_size);
+            fseek(args->image, duo_indirect_addr, SEEK_SET);
+            fread(double_zones, sizeof(uint32_t), 
+            INDIRECT_ZONES, args->image);
+
+            for (i = 0;  i < INDIRECT_ZONES && bytes_left > 0; i++) {
+                uint32_t curr_indirect_zone = double_zones[i];
+
+                if (curr_indirect_zone == 0) {
+                    // Hole within the indirect zone
+                    uint32_t hole_bytes = (INDIRECT_ZONES * block_size);
+            
+                    if (bytes_left < hole_bytes) {
+                        bytes_left -= bytes_left;
+                    } else {
+                        bytes_left -= hole_bytes;
+                    }
+                    continue;   // Skip to next indirect
+                }
+
+                // Process direct zones of indirect zones
+                intptr_t indirect_addr = partition_addr + 
+                                        (curr_inode->indirect * zone_size);
+                fseek(args->image, indirect_addr, SEEK_SET);
+                fread(indirect_zones, sizeof(uint32_t), 
+                        INDIRECT_ZONES, args->image);
+
+                for (int j = 0;  j < INDIRECT_ZONES && bytes_left > 0; j++){
+                    uint32_t curr_zone = indirect_zones[j];
+                    uint32_t num_bytes = block_size;
+                    
+                    // if number of bytes left is less than the size of zone
+                    if (bytes_left < block_size) {
+                        // number of bytes to read should be bytes left
+                        num_bytes = bytes_left;
+                    }
+
+                    // check if deleted zone
+                    if (curr_zone == 0) {
+                        // decrement number of bytes left to read
+                        bytes_left -= num_bytes;
+                        continue;
+                    }
+
+                    // seek/read num_bytes at zone address
+                    intptr_t zone_addr = partition_addr + 
+                                            (curr_zone * zone_size);
+                    printZone(args, zone_addr, zone_size, num_bytes);
+                    bytes_left -= num_bytes;
+                }
+            }
+        }
+    }
 }
 
 void printZone(Args_t *args, intptr_t zone_addr, size_t zone_size, 

@@ -62,7 +62,6 @@ uint32_t findInode(char *path, Args_t *args, size_t zone_size,
             }
         }
 
-        //TODO: indirect zones
         if (!found && bytes_left > 0) {
             if (curr_inode->indirect == 0) {
                 // Hole detected => zones referred to are to be treated as zero
@@ -83,7 +82,7 @@ uint32_t findInode(char *path, Args_t *args, size_t zone_size,
 
                 for (i = 0;  i < INDIRECT_ZONES && bytes_left > 0; i++) {
                     uint32_t curr_zone = indirect_zones[i];
-                    uint32_t num_bytes = block_size; // TODO: why block size
+                    uint32_t num_bytes = block_size;
 
                     // if number of bytes left is less than the size of zone
                     if (bytes_left < block_size) {
@@ -114,7 +113,6 @@ uint32_t findInode(char *path, Args_t *args, size_t zone_size,
             }
         }
 
-        //TODO: double indirect zones
         if (!found && bytes_left > 0) {
             if (curr_inode->two_indirect == 0) {
                 // Hole detected => zones referred to are to be treated as zero
@@ -158,7 +156,7 @@ uint32_t findInode(char *path, Args_t *args, size_t zone_size,
 
                     for (int j = 0;  j < INDIRECT_ZONES && bytes_left > 0; j++){
                         uint32_t curr_zone = indirect_zones[j];
-                        uint32_t num_bytes = block_size; // TODO: why block size
+                        uint32_t num_bytes = block_size;
                         
                         // if number of bytes left is less than the size of zone
                         if (bytes_left < block_size) {
@@ -201,7 +199,6 @@ uint32_t findInode(char *path, Args_t *args, size_t zone_size,
     }
 }
 
-// TODO: is this worth it
 uint32_t checkZone(Args_t *args, intptr_t zone_addr, size_t zone_size, 
                 char *path_token, uint32_t num_bytes) {
     uint8_t zone_buff[zone_size];
@@ -285,7 +282,7 @@ void parseArgs(int argc, char *argv[], bool func, Args_t *args) {
 
                 break;
             default:
-                break;  // Maybe missing print usage???
+                break;
         }
     }
 

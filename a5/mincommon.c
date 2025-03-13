@@ -425,31 +425,31 @@ void printPartitionTable(PartitionTableEntry_t *pt, bool sub) {
         printf("SubPartition Table:\n");
     }
 
-    printf("\tbootind: %d\n", pt->bootind);
-    printf("\tstart_head: %d\n", pt->start_head);
-    printf("\tstart_sec: %d\n", pt->start_sec);
-    printf("\tstart_cyl: %d\n", pt->start_cyl);
-    printf("\ttype: %d\n", pt->type);
-    printf("\tend_head: %d\n", pt->end_head);
-    printf("\tend_sec: %d\n", pt->end_sec);
-    printf("\tend_cyl: %d\n", pt->end_cyl);
-    printf("\tlFirst: %d\n", pt->lFirst);
-    printf("\tsize: %d\n\n", pt->size);
+    printf("   bootind: %d\n", pt->bootind);
+    printf("   start_head: %d\n", pt->start_head);
+    printf("   start_sec: %d\n", pt->start_sec);
+    printf("   start_cyl: %d\n", pt->start_cyl);
+    printf("   type: %d\n", pt->type);
+    printf("   end_head: %d\n", pt->end_head);
+    printf("   end_sec: %d\n", pt->end_sec);
+    printf("   end_cyl: %d\n", pt->end_cyl);
+    printf("   lFirst: %d\n", pt->lFirst);
+    printf("   size: %d\n\n", pt->size);
 }
 
 void printSuperBlock(SuperBlock_t *sb) {
-    printf("Super Block:\n\tOn Disk:\n");
-    printf("\t\tninodes: %d\n", sb->ninodes);
-    printf("\t\tpad1: %d\n", sb->pad1);
-    printf("\t\ti_blocks: %d\n", sb->i_blocks);
-    printf("\t\tz_blocks: %d\n", sb->z_blocks);
-    printf("\t\tfirstdata: %d\n", sb->firstdata);
-    printf("\t\tlog_zone_size: %d\n", sb->log_zone_size);
-    printf("\t\tmax_file: %u\n", sb->max_file);
-    printf("\t\tzones: %d\n", sb->zones);
-    printf("\t\tmagic: %d\n", sb->magic);
-    printf("\t\tblocksize: %d\n", sb->blocksize);
-    printf("\t\tsubversion: %d\n\n", sb->subversion);
+    printf("Super Block:\n   On Disk:\n");
+    printf("      ninodes: %d\n", sb->ninodes);
+    printf("      pad1: %d\n", sb->pad1);
+    printf("      i_blocks: %d\n", sb->i_blocks);
+    printf("      z_blocks: %d\n", sb->z_blocks);
+    printf("      firstdata: %d\n", sb->firstdata);
+    printf("      log_zone_size: %d\n", sb->log_zone_size);
+    printf("      max_file: %u\n", sb->max_file);
+    printf("      zones: %d\n", sb->zones);
+    printf("      magic: %d\n", sb->magic);
+    printf("      blocksize: %d\n", sb->blocksize);
+    printf("      subversion: %d\n\n", sb->subversion);
 }
 
 bool isValidFS(SuperBlock_t *block) {

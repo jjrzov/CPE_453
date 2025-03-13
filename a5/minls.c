@@ -216,7 +216,7 @@ void printInodeDirs(uint32_t ind, Args_t *args, size_t zone_size,
 }
 
 /**
- * Prints the file info of all  directory entries in a given zone
+ * Prints the file info of all directory entries in a given zone
  */
 void printZone(Args_t *args, intptr_t zone_addr, size_t zone_size, 
                 uint32_t num_bytes) {

@@ -2,6 +2,10 @@
 
 Inode_t *inodes;
 
+/**
+ * Traverse through the given image path to find its correlated inode number
+ * within the image.
+ */
 uint32_t findInode(char *path, Args_t *args, size_t zone_size, 
                     intptr_t partition_addr, size_t block_size) {
     if (args->verbose) {
@@ -199,6 +203,10 @@ uint32_t findInode(char *path, Args_t *args, size_t zone_size,
     }
 }
 
+/**
+ * Given a zone and name, finds the corresponding directory entry and returns
+ * its inode index
+ */
 uint32_t checkZone(Args_t *args, intptr_t zone_addr, size_t zone_size, 
                 char *path_token, uint32_t num_bytes) {
     uint8_t zone_buff[zone_size];
@@ -230,6 +238,10 @@ uint32_t checkZone(Args_t *args, intptr_t zone_addr, size_t zone_size,
     return 0;
 }
 
+/**
+ * Parse through input arguments for a minls or minget command and store into 
+ * Args_t struct 
+ */
 void parseArgs(int argc, char *argv[], bool func, Args_t *args) {
     // Initialize args struct
     args->part_number = -1;
@@ -246,6 +258,7 @@ void parseArgs(int argc, char *argv[], bool func, Args_t *args) {
     }
 
     int opt;
+    // Go through the flags
     while ((opt = getopt(argc, argv, "vp:s:")) != -1) {
         switch (opt) {
             case 'v':
@@ -322,7 +335,10 @@ void parseArgs(int argc, char *argv[], bool func, Args_t *args) {
     }
     return;
 }
-
+/**
+ * Fills out the partition table for a primary or sub partition from the 
+ * boot sector
+ */
 void parsePartitionTable(Args_t *args, PartitionTableEntry_t *part_table) {
     if (!args->has_part) {
         return; // Unpartitioned
@@ -391,6 +407,10 @@ void parsePartitionTable(Args_t *args, PartitionTableEntry_t *part_table) {
     return;
 }
 
+/**
+ * Parses the image for the superblock and stores the superblock info into
+ * a struct SuperBlock_t
+ */
 void parseSuperBlock(Args_t *args, PartitionTableEntry_t *part_table,
                         SuperBlock_t *super_blk) {
 
@@ -415,6 +435,9 @@ void parseSuperBlock(Args_t *args, PartitionTableEntry_t *part_table,
     return;
 }
 
+/**
+ * Prints Partition table for verbose flag
+ */
 void printPartitionTable(PartitionTableEntry_t *pt, bool sub) {
     if (!sub) {
         printf("Partition Table:\n");
@@ -434,6 +457,9 @@ void printPartitionTable(PartitionTableEntry_t *pt, bool sub) {
     printf("   size: %d\n\n", pt->size);
 }
 
+/**
+ * Prints Super Block for verbose flag
+ */
 void printSuperBlock(SuperBlock_t *sb) {
     printf("Super Block:\n   On Disk:\n");
     printf("      ninodes: %d\n", sb->ninodes);
@@ -449,14 +475,23 @@ void printSuperBlock(SuperBlock_t *sb) {
     printf("      subversion: %d\n\n", sb->subversion);
 }
 
+/**
+ * Checks if the FS the superblock is within is a valid FS
+ */
 bool isValidFS(SuperBlock_t *block) {
     return (block->magic == MINIX_MAGIC_NUM);
 }
 
+/**
+ * Checks a partition tables signatures to check that it is valid
+ */
 bool isValidPartition(uint8_t *block) {
     return (block[510] == VALID_BYTE510) && (block[511] == VALID_BYTE511);
 }
 
+/**
+ * Prints the usage of minls or minget for verbose flag
+ */
 void printUsage(bool func) {
     if (func) {
         fprintf(stderr,

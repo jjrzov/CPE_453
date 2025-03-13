@@ -65,7 +65,15 @@ uint32_t findInode(char *path, Args_t *args, size_t zone_size,
         //TODO: indirect zones
         if (!found && bytes_left > 0) {
             if (curr_inode->indirect == 0) {
-                // TODO: huh??
+                // Hole detected => zones referred to are to be treated as zero
+                uint32_t hole_bytes = (INDIRECT_ZONES * block_size);
+                
+                if (bytes_left < hole_bytes) {
+                    bytes_left -= bytes_left;
+                } else {
+                    bytes_left -= hole_bytes;
+                }
+
             } else {
                 intptr_t indirect_addr = partition_addr + 
                                             (curr_inode->indirect * zone_size);
@@ -107,6 +115,56 @@ uint32_t findInode(char *path, Args_t *args, size_t zone_size,
         }
 
         //TODO: double indirect zones
+        if (!found && bytes_left > 0) {
+            if (curr_inode->two_indirect == 0) {
+                // Hole detected => zones referred to are to be treated as zero
+                uint32_t hole_bytes = (INDIRECT_ZONES * block_size);
+                
+                if (bytes_left < hole_bytes) {
+                    bytes_left -= bytes_left;
+                } else {
+                    bytes_left -= hole_bytes;    
+                }
+
+            } else {
+                intptr_t duo_indirect_addr = partition_addr + 
+                                        (curr_inode->two_indirect * zone_size);
+                fseek(args->image, duo_indirect_addr, SEEK_SET);
+                fread(double_zones, sizeof(uint32_t), 
+                INDIRECT_ZONES, args->image);
+
+                for (i = 0;  i < INDIRECT_ZONES && bytes_left > 0; i++) {
+                    uint32_t curr_zone = double_zones[i];
+                    uint32_t num_bytes = block_size; // TODO: why block size
+
+                    // if number of bytes left is less than the size of zone
+                    if (bytes_left < block_size) {
+                        // number of bytes to read should be bytes left
+                        num_bytes = bytes_left;
+                    }
+
+                    // check if deleted zone
+                    if (curr_zone == 0) {
+                        // decrement number of bytes left to read
+                        bytes_left -= num_bytes;
+                        continue;
+                    }
+
+                    // seek/read num_bytes at zone address
+                    intptr_t zone_addr = partition_addr + 
+                                            (curr_zone * zone_size);
+                    int ind = checkZone(args, zone_addr, zone_size, 
+                                            path_token, num_bytes);
+                    bytes_left -= num_bytes;
+
+                    if (ind) {
+                        curr_inode_ind = ind - 1;
+                        curr_inode = inodes + curr_inode_ind;
+                        found = true;
+                    }
+                }
+            }
+        }
 
         // increment path_token
         path_token = strtok(NULL, "/");

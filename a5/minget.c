@@ -93,7 +93,25 @@ void printInodeFileContents(uint32_t ind, Args_t *args, size_t zone_size,
     //TODO: indirect zones
     if (bytes_left > 0) {
         if (curr_inode->indirect == 0) {
-            // TODO: huh??
+            // Deal with holes
+            uint32_t hole_bytes = (INDIRECT_ZONES * block_size);    
+            
+            uint32_t read_bytes = hole_bytes;
+            if (bytes_left < hole_bytes) {
+                read_bytes -= bytes_left;
+            }
+
+            memset(zone_buff, 0, block_size);
+
+            // Get amount of blocks and remaning data
+            uint32_t num_blocks = read_bytes / block_size;
+            // maybe get remaining  ???
+            for (i = 0; i < num_blocks; i++) {
+                fwrite(zone_buff, sizeof(char), block_size, args->dest);
+            }
+
+            bytes_left -= read_bytes;
+
         } else {
             // printf("Entered Indirect Zones\n");
             intptr_t indirect_addr = partition_addr + 
@@ -134,4 +152,85 @@ void printInodeFileContents(uint32_t ind, Args_t *args, size_t zone_size,
     }
 
     //TODO: double indirect zones
+    if (bytes_left > 0) {
+        if (curr_inode->two_indirect == 0) {
+            // Deal with holes
+            uint32_t hole_bytes = (INDIRECT_ZONES * INDIRECT_ZONES * 
+                                        block_size);    
+            
+            uint32_t read_bytes = hole_bytes;
+            if (bytes_left < hole_bytes) {
+                read_bytes = bytes_left;
+            }
+
+            memset(zone_buff, 0, block_size);
+
+            // Get amount of blocks and remaning data
+            uint32_t num_blocks = read_bytes / block_size;
+            // maybe get remaining  ???
+            for (i = 0; i < num_blocks; i++) {
+                fwrite(zone_buff, sizeof(char), block_size, args->dest);
+            }
+
+            bytes_left -= read_bytes;
+        } else {
+            // printf("Entered Double Indirect Zones\n");
+            intptr_t duo_indirect_addr = partition_addr + 
+                                        (curr_inode->two_indirect * zone_size);
+            fseek(args->image, duo_indirect_addr, SEEK_SET);
+            fread(double_zones, sizeof(uint32_t), 
+                    INDIRECT_ZONES, args->image);
+
+            for (i = 0;  i < INDIRECT_ZONES && bytes_left > 0; i++) {
+                if (double_zones[i] == 0) {
+                    // Deal with holes
+                    uint32_t hole_bytes = (INDIRECT_ZONES * block_size);    
+
+                    uint32_t read_bytes = hole_bytes;
+                    if (bytes_left < hole_bytes) {
+                        read_bytes = bytes_left;
+                    }
+
+                    memset(zone_buff, 0, block_size);
+
+                    // Get amount of blocks and remaning data
+                    uint32_t num_blocks = read_bytes / block_size;
+                    // maybe get remaining  ???
+                    for (i = 0; i < num_blocks; i++) {
+                        fwrite(zone_buff, sizeof(char), block_size, args->dest);
+                    }
+
+                    bytes_left -= read_bytes;
+                } else {
+                    // printf("Entered Indirect Zones\n");
+                    uint32_t curr_zone = double_zones[i];
+                    // printf("curr_zone: %d\n", curr_zone);
+                    uint32_t num_bytes = block_size; // TODO: why block size
+
+                    // if number of bytes left is less than the size of zone
+                    if (bytes_left < block_size) {
+                        // number of bytes to read should be bytes left
+                        num_bytes = bytes_left;
+                    }
+
+                    // check if empty zone
+                    if (curr_zone == 0) {
+                        memset(zone_buff, 0, num_bytes);
+                        fwrite(zone_buff, sizeof(char), num_bytes, args->dest);
+                        // decrement number of bytes left to read
+                        bytes_left -= num_bytes;
+                        continue;
+                    }
+
+                    // seek/read num_bytes at zone address
+                    intptr_t zone_addr = partition_addr + 
+                                            (curr_zone * zone_size);
+                    fseek(args->image, zone_addr, SEEK_SET);
+                    fread(zone_buff, sizeof(uint8_t), num_bytes, args->image);
+                    fwrite(zone_buff, sizeof(char), num_bytes, args->dest);
+                    bytes_left -= num_bytes;
+                }
+            }
+        }
+    }
 }

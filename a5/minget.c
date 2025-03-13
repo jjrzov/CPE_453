@@ -10,35 +10,45 @@ int main(int argc, char *argv[]) {
     PartitionTableEntry_t part_table;
     SuperBlock_t super_blk;
 
+    // Parse arguments and partition table/super block
     parseArgs(argc, argv, !MINLS_BOOL, &args);
     parsePartitionTable(&args, &part_table);
     parseSuperBlock(&args, &part_table, &super_blk);
 
+    // Calculate partition address and zone size
     size_t part_addr = part_table.lFirst * SECTOR_SIZE;    // First sector
     size_t zone_size = super_blk.blocksize << super_blk.log_zone_size;
 
-    // Get Inodes
+    // Malloc list of inodes
     inodes = (Inode_t *) malloc(sizeof(Inode_t) * super_blk.ninodes);
     size_t inode_addr = part_addr + 
                             ((2 + super_blk.i_blocks + super_blk.z_blocks) *
                             super_blk.blocksize);
 
+    // Seek and read inode list from image
     fseek(args.image, inode_addr, SEEK_SET);    // Go to inode 1 address
     fread(inodes, sizeof(Inode_t), super_blk.ninodes, args.image);
+
+    // Find inode corresponding to path
     uint32_t found_inode_ind = findInode(args.src_path, &args, zone_size, 
                                             part_addr, zone_size);
+    
+    // If inode not found, file does not exist
     if (!found_inode_ind) {
         perror("Error: File not found\n");
         exit(EXIT_FAILURE);
     } 
 
+    // Traverse inode list for found inode
     Inode_t *found_inode = inodes + found_inode_ind - 1;
 
+    // Found inode must be a regular file
     if ((found_inode->mode & FILE_TYPE_MASK) != REGULAR_FILE) {
         perror("Error: Not a file\n");
         exit(EXIT_FAILURE);
     }
 
+    // Write contents of file to dest
     printInodeFileContents(found_inode_ind, &args, zone_size, part_addr, 
                     zone_size);
 }
